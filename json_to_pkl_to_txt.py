@@ -28,33 +28,35 @@ df_R = pd.DataFrame(points_R, columns=["frame_idx", "x", "y"])
 identity_dict_L = {}
 identity_dict_R = {}
 
-# Assume 69390 is the identity for all points (single identity)
-identity = 69390
+identityL = 1
+identityR = 2
 
 # Collect data for all frames from left camera
 for _, row in df_L.iterrows():
-    if identity not in identity_dict_L:
-        identity_dict_L[identity] = {'FRAME_IDX': [], 'X': [], 'Y': []}
-    identity_dict_L[identity]['FRAME_IDX'].append(row['frame_idx'])
-    identity_dict_L[identity]['X'].append(row['x'])
-    identity_dict_L[identity]['Y'].append(row['y'])
+    if identityL not in identity_dict_L:
+        identity_dict_L[identityL] = {'FRAME_IDX': [], 'X': [], 'Y': []}
+    identity_dict_L[identityL]['FRAME_IDX'].append(row['frame_idx'])
+    identity_dict_L[identityL]['X'].append(row['x'])
+    identity_dict_L[identityL]['Y'].append(row['y'])
+
+
 
 # Collect data for all frames from right camera
 for _, row in df_R.iterrows():
-    if identity not in identity_dict_R:
-        identity_dict_R[identity] = {'FRAME_IDX': [], 'X': [], 'Y': []}
-    identity_dict_R[identity]['FRAME_IDX'].append(row['frame_idx'])
-    identity_dict_R[identity]['X'].append(row['x'])
-    identity_dict_R[identity]['Y'].append(row['y'])
+    if identityR not in identity_dict_R:
+        identity_dict_R[identityR] = {'FRAME_IDX': [], 'X': [], 'Y': []}
+    identity_dict_R[identityR]['FRAME_IDX'].append(row['frame_idx'])
+    identity_dict_R[identityR]['X'].append(row['x'])
+    identity_dict_R[identityR]['Y'].append(row['y'])
 
 # Convert lists to numpy arrays for better data handling
-identity_dict_L[identity]['FRAME_IDX'] = pd.Series(identity_dict_L[identity]['FRAME_IDX']).to_numpy()
-identity_dict_L[identity]['X'] = pd.Series(identity_dict_L[identity]['X']).to_numpy()
-identity_dict_L[identity]['Y'] = pd.Series(identity_dict_L[identity]['Y']).to_numpy()
+identity_dict_L[identityL]['FRAME_IDX'] = pd.Series(identity_dict_L[identityL]['FRAME_IDX']).to_numpy()
+identity_dict_L[identityL]['X'] = pd.Series(identity_dict_L[identityL]['X']).to_numpy()
+identity_dict_L[identityL]['Y'] = pd.Series(identity_dict_L[identityL]['Y']).to_numpy()
 
-identity_dict_R[identity]['FRAME_IDX'] = pd.Series(identity_dict_R[identity]['FRAME_IDX']).to_numpy()
-identity_dict_R[identity]['X'] = pd.Series(identity_dict_R[identity]['X']).to_numpy()
-identity_dict_R[identity]['Y'] = pd.Series(identity_dict_R[identity]['Y']).to_numpy()
+identity_dict_R[identityR]['FRAME_IDX'] = pd.Series(identity_dict_R[identityR]['FRAME_IDX']).to_numpy()
+identity_dict_R[identityR]['X'] = pd.Series(identity_dict_R[identityR]['X']).to_numpy()
+identity_dict_R[identityR]['Y'] = pd.Series(identity_dict_R[identityR]['Y']).to_numpy()
 
 # Save the dictionaries as pickle files
 with open("identity_points_L.pkl", "wb") as f_L:
