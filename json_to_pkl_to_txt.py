@@ -29,7 +29,8 @@ identity_dict_L = {}
 identity_dict_R = {}
 
 identityL = 1
-identityR = 1
+identityR = 2
+
 
 # Collect data for all frames from left camera
 for _, row in df_L.iterrows():
