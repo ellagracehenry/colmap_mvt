@@ -45,10 +45,56 @@ scene.interpolate_cameras()
 scene.triangulate_multiview_tracks()
 #Calculate reprojection erros
 scene.get_reprojection_errors()
+
+# Gather all track identities visible in each camera
+all_identities = []
+for cam_id, cam in scene.cameras.items():
+    if cam.tracks is not None:
+        all_identities.append(cam.tracks['IDENTITIES'])
+
+if not all_identities:
+    print("No camera tracks available, skipping project_singleview_tracks")
+else:
+    all_identities = np.unique(np.concatenate(all_identities))
+    
+    # Check for single view frames (frames visible in exactly one camera) per identity
+    has_single_view_tracks = False
+    for identity in all_identities:
+        # Get all frames where this identity is visible in any camera
+        frames_per_camera = []
+        for cam_id, cam in scene.cameras.items():
+            frames = cam.frames_in_view(identity)
+            if frames.size > 0:
+                frames_per_camera.append(set(frames))
+        
+        if not frames_per_camera:
+            continue
+        
+        # Union of all frames where identity is seen
+        all_frames = set.union(*frames_per_camera)
+        
+        # For each frame, count how many cameras see this identity
+        for frame in all_frames:
+            visible_count = sum([1 for frames in frames_per_camera if frame in frames])
+            if visible_count == 1:
+                has_single_view_tracks = True
+                break
+        if has_single_view_tracks:
+            break
+
+    if has_single_view_tracks:
+        print("Single-view tracks detected, running project_singleview_tracks()")
+        scene.project_singleview_tracks()
+        scene.get_tracks_3d()
+    else:
+        print("No single-view tracks found, skipping project_singleview_tracks()")
+
+
 #Project trajectory points observed in one view using interpolated depth from triangulated trajectories
-scene.project_singleview_tracks()
+#scene.project_singleview_tracks()
 #Combine triangulated and projected trajectories
-scene.get_tracks_3d()
+#scene.get_tracks_3d()
+
 
 #Select camera IDs
 camera_ids = [1, 2]
@@ -67,7 +113,10 @@ scene.rotate()
 
 #Plot with mesh
 #Linearly interpolate  3D track for visualisation
-tracks_interpolated = mvt.tracks.interpolate_tracks(scene.tracks_3d)
+if has_single_view_tracks:
+    tracks_interpolated = mvt.tracks.interpolate_tracks(scene.tracks_3d)
+else:
+    tracks_interpolated = mvt.tracks.interpolate_tracks(scene.tracks_triangulated)
 
 #Extract points at resolution of choice
 pts_3d_interpolated = []

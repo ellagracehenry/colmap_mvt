@@ -2,7 +2,7 @@ import pickle
 from pprint import pprint
 
 # Specify the file path
-file_path = r"C:\Users\ellag\Desktop\ACADEMIC PROJECTS\3D_tracking_pipeline\colmap\data\tracks\identity_points_leftimg.pkl"
+file_path = r"C:\Users\ellag\Downloads\tracks_rightimg.pkl"
 #file_path = r"C:\Users\ellag\Desktop\ACADEMIC PROJECTS\3D_tracking_pipeline\colmap\data\tracks\tracks_i_0_cut.pkl"
 
 with open(file_path, "rb") as f:
