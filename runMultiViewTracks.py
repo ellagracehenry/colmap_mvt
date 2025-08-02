@@ -192,6 +192,9 @@ point_cloud = np.append(interpolated_points, rgb, axis=1)  # Combine the 3D poin
 tracks_3d_df = pd.DataFrame(point_cloud)
 tracks_3d_df.to_csv("project_3/tracks_3d_output.csv", index=False)
 
+point_dim_t = 6
+point_dim_m = 9
+
 print("3D tracks saved to tracks_3d_output.csv")
 mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(point_cloud),
                     file_name='project_3/3d_tracks.ply')
