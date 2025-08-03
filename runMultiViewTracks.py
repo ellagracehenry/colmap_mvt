@@ -196,9 +196,9 @@ point_dim_t = 6
 point_dim_m = 9
 
 print("3D tracks saved to tracks_3d_output.csv")
-mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(point_cloud),
+mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(point_cloud),point_dim_t,
                     file_name='project_3/3d_tracks.ply')
 print("3D tracks saved to 3d_tracks.ply")
-mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(scene.point_cloud),
+mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(scene.point_cloud),point_dim_m,
                     file_name='project_3/model.ply')
 print("model saved to model.ply")
