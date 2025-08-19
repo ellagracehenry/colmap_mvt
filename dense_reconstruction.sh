@@ -22,7 +22,9 @@ colmap patch_match_stereo --workspace_path project_name/dense --workspace_format
 echo "patch match stereo complete"
 colmap stereo_fusion --workspace_path project_name/dense --workspace_format COLMAP --input_type geometric --output_path project_name/dense/fused.ply
 echo "stereo_fusion complete"
-colmap poisson_mesher --input_path project_name/dense/fused.ply --output_path project_name/dense/meshed-poisson.ply
-echo "poisson mesher complete"
-colmap delaunay_mesher --input_path project_name/dense --output_path project_name/dense/meshed-delaunay.ply
-echo "delaunay mesher complete"
+
+#OPTIONAL - Comment back in if you do NOT need a scaled model
+#colmap poisson_mesher --input_path project_name/dense/fused.ply --output_path project_name/dense/meshed-poisson.ply
+#echo "poisson mesher complete"
+#colmap delaunay_mesher --input_path project_name/dense --output_path project_name/dense/meshed-delaunay.ply
+#echo "delaunay mesher complete"
