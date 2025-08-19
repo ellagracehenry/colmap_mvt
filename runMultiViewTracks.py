@@ -2,7 +2,7 @@
 import os
 import sys
 
-sys.path.append('/projects/elhe2720/software/multiviewtracks') # edit this
+sys.path.append('/projects/elhe2720/software/multiviewtracks_Gil_Lab') # edit this
 import MultiViewTracks as mvt
 import matplotlib.pyplot as plt
 import seaborn as sns
