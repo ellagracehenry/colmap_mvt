@@ -17,7 +17,9 @@ module load miniforge
 conda activate glomap_env
 echo "glomap conda environment activated"
 
-colmap poisson_mesher --input_path project_name/dense/model.ply --output_path project_name/dense/meshed-poisson.ply
+colmap poisson_mesher --input_path project_name/dense/rescaled_model.ply --output_path project_name/dense/rescaled_meshed-poisson.ply
 echo "poisson mesher complete"
-colmap delaunay_mesher --input_path project_name/dense --output_path project_name/dense/meshed-delaunay.ply
-echo "delaunay mesher complete"
+
+#Currently not working... 
+#colmap delaunay_mesher --input_path project_name/dense --output_path project_name/dense/meshed-delaunay.ply
+#echo "delaunay mesher complete"
