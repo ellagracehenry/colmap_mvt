@@ -8,6 +8,7 @@
 #SBATCH --error=log_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=elhe2720@colorado.edu #Change this to your email address
+#SBATCH --qos=normal
 
 #load conda environment
 module purge
