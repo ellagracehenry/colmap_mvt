@@ -1,5 +1,4 @@
 #!/bin/bash
-#SBATCH --account=ucb689_peak1
 #SBATCH --partition aa100 # Partition or queue
 #SBATCH --job-name=dense_reconstruction # Job name
 #SBATCH --gres=gpu:2
@@ -10,6 +9,7 @@
 #SBATCH --error=log_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=elhe2720@colorado.edu #Change this to your email address
+#SBATCH --qos=normal
 
 #load conda environment
 module purge
