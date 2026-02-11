@@ -10,7 +10,7 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 import re
-
+import argparse
 
 def read_images_txt(path):
     
@@ -153,12 +153,27 @@ def find_contiguous_ranges(sorted_frames): #given a sorted list of frames
 
 
 def main():
-    sparse_path = "/Users/ellag/Downloads/GZ_sparse"
-    #output_path = "/Users/ellag/Downloads/GZ_submodel1/images-list.csv"
-    #summary_output_path = "/Users/ellag/Downloads/GZ_submodel1/missing_images.csv"
-    first_left = 1
-    last_left = 3664
-    extr_fps = 3
+    parser = argparse.ArgumentParser(description = 'Analyse sparse point cloud subfolders')
+    parser.add_argument('--sparse_path', type = str, required=True, help='Directory containing sparse submodels')
+    parser.add_argument('--first_image', type=int, required=True, help='The number of the first image in images folder, usually 1 (i.e. left_0001.jpg)')
+    parser.add_argument('--last_image', type=int, required=True, help='The number of the last image in images folder, (e.g. 3664 for left_3664.jpg)')
+    parser.add_argument('--fps', type=int, required=True, help='The fps your image set is in')
+
+    if len(os.sys.argv) == 1:
+        parser.print_help()
+        return
+
+    args = parser.parse_args()
+    sparse_path = args.sparse_path
+    first_left = args.first_image
+    last_left = args.last_image
+    fps = args.fps
+
+    if fps == 3:
+        extr_fps = 1
+    else:
+        extr_fps = 3
+
     exp_frames = ((last_left - first_left) // extr_fps) + 1
 
     sparse_path = Path(sparse_path)
@@ -173,15 +188,12 @@ def main():
     summary_dict = {}
 
     for submodel_dir in folders:
-        print(submodel_dir)
         if submodel_dir.is_dir():
             print(f"Processing submodel: {submodel_dir.name}")
 
             output_path = submodel_dir/"images-list.csv"
             summary_output_path = submodel_dir/"missing_images.csv"
-            print(summary_output_path)
             images_txt = submodel_dir/"images.txt"
-            print(images_txt)
         else:
             print(f"Non directory found, exiting...")
             return
@@ -217,7 +229,7 @@ def main():
         else:
             print(f"~{int(100-(len(images_dict)/(exp_frames*2)*100))}% images missing from submodel, generating report...")
 
-#Writing summary
+            #Writing summary
             # Sort images temporally
             sorted_items = sorted(images_dict.items(), key=lambda x: _temporal_sort_key(x[1]['name']))
 
@@ -249,7 +261,7 @@ def main():
             summary_dict[f"{submodel_dir.name}_left"] = [left_count] + left_range_strings
             summary_dict[f"{submodel_dir.name}_right"] = [right_count] + right_range_strings
 
-#Writing missing images files
+            #Writing missing images files
 
             left_frames_dict ={}
             right_frames_dict={}
@@ -281,91 +293,7 @@ def main():
                     }
                     writer.writerow(row)
 
-           
-            # sorted_items = sorted(images_dict.items(), key=lambda x: _temporal_sort_key(x[1]['name']))
-            # total = len(sorted_items)
-
-            # chunks = []
-
-            # chunk_images = {img_id: img_data for img_id, img_data in sorted_items}
-            # chunks.append({
-            #     'image_names':[img['name'] for img in chunk_images.values()]
-            # })
-
-            # fieldnames = ["left_name","left_frame","right_name","right_frame"]
-
-            # with open(output_path, mode = 'w', newline='') as csvfile:
-            #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            #     writer.writeheader()
-
-            #     for image in chunks:
-            #         row = {'left_name': '', 'right_name': '', 'right_frame': '', 'left_frame': ''}
-
-            #         for image_name in image['image_names']:
-            #             side, name = image_name.split("/", 1)
-
-            #             if side == "left":
-            #                 row['left_name'] = name
-            #                 n_jpg, rest = name.split("_",1)
-            #                 no, rest = rest.split(".",1)
-            #                 row['left_frame'] = no
-            #             elif side == "right":
-            #                 row['right_name'] = name  
-            #                 n_jpg, rest = name.split("_",1)
-            #                 no, rest = rest.split(".",1)
-            #                 row['right_frame'] = no
-
-            #             # once both are filled, write and reset
-            #             if row['left_name'] and row['right_name'] and row['left_frame'] and row['right_frame']:
-            #                 writer.writerow(row)
-            #                 row = {'left_name': '', 'right_name': '', 'right_frame': '', 'left_frame': ''}
-
         print(f"Image list writtern to {output_path}")
-
-        # expected_list = list(range(first_left, last_left+1, 3))
-
-        # df = pd.read_csv(output_path)
-    
-        # left_frames = set(df['left_frame'].astype(int))
-        # right_frames = set(df['right_frame'].astype(int))
-    
-        # expected_set = set(expected_list)
-
-        # missing_left = sorted(expected_set - left_frames)
-        # missing_right = sorted(expected_set - right_frames)
-
-
-        # broken_pairs = sorted(
-        # f for f in expected_set
-        # if (f in left_frames) != (f in right_frames)
-        # )
-
-        # header = ['left_name','left_frame','right_name','right_frame','missing_frames','broken_stereo']
-
-        # df = pd.read_csv(output_path)
-
-        # missing_left_str = ','.join(map(str,missing_left))
-        # broken_pairs_str = ','.join(map(str,broken_pairs))
-
-
-    # Path to output CSV
-
-    # # Write CSV with just one row
-    #     header = ['missing_left_frames', 'broken_pairs']
-    #     with open(summary_output_path, mode='w', newline='') as f:
-    #         writer = csv.writer(f)
-
-    #         writer.writerow(['missing_left_frames', 'broken_pairs'])
-
-    #         max_len = max(len(missing_left), len(broken_pairs))
-
-    #         for i in range(max_len):
-    #             # Get the value if it exists, otherwise empty string
-    #             missing_val = missing_left[i] if i < len(missing_left) else ''
-    #             broken_val = broken_pairs[i] if i < len(broken_pairs) else ''
-    #             writer.writerow([missing_val, broken_val])
-
-    #     print(f"Missing images written to {summary_output_path}")  
     
     # Determine max number of rows needed
     max_rows = max(len(v) for v in summary_dict.values())
@@ -377,29 +305,14 @@ def main():
     # Create DataFrame
     summary_df = pd.DataFrame(summary_dict)
 
-    # Save Excel
-    summary_excel_path = sparse_path / "submodel_summary.xlsx"
-    summary_df.to_excel(summary_excel_path, index=False)
-
-    print(f"Summary Excel written to {summary_excel_path}")
+    #Summary csv
+    summary_csv_path = sparse_path / "submodel_summary.csv"
+    summary_df.to_csv(summary_csv_path, index=False)
 
 
-    
+    print(f"\u2705 Summary csv written to {summary_csv_path}")
+    print(f"\u2705 Individual image lists in each submodel folder")
 
-main()
-
-#df = pd.read_csv(output_path)
-
-# min_left_frame = df['left_frame'].min()
-# max_left_frame = df['left_frame'].max()
-# min_right_frame = df['right_frame'].min()
-# max_right_frame = df['right_frame'].max()
-
-
-
-
-#Enter the frame rate
-#See where there are gaps in the image.list
-#Parrallise to working on different submodels  and recording the submodel each image belongs too
-#Summary output that gives how much of the images are in submodels vs not included and frame span that each submodel has
+if __name__ == "__main__":
+    main()
 
