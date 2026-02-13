@@ -134,7 +134,7 @@ def extract_frame_number(image_name):
     return int(m.group(1))
 
 
-def find_contiguous_ranges(sorted_frames): #given a sorted list of frames
+def find_contiguous_ranges(sorted_frames, extr_fps): #given a sorted list of frames
     ranges = [] #initialise empty list
     if not sorted_frames: #if no frames return an empty list
         return ranges
@@ -142,7 +142,7 @@ def find_contiguous_ranges(sorted_frames): #given a sorted list of frames
     start = prev = sorted_frames[0] #begin the first range at the first frame
 
     for frame in sorted_frames[1:]: #loop over remaining frames starting at the second position
-        if frame == prev + 3:  # because extr_fps = 3, a sequence is continuous
+        if frame == prev + extr_fps:  # because extr_fps = 3, a sequence is continuous
             prev = frame #extent current range
         else: #if a gap is found, close range and save
             ranges.append((start, prev))
@@ -252,8 +252,8 @@ def main():
             left_count = len(left_frames)
             right_count = len(right_frames)
 
-            left_ranges = find_contiguous_ranges(left_frames)
-            right_ranges = find_contiguous_ranges(right_frames)
+            left_ranges = find_contiguous_ranges(left_frames, extr_fps)
+            right_ranges = find_contiguous_ranges(right_frames, extr_fps)
 
             left_range_strings = [f"{s}-{e}" for s, e in left_ranges]
             right_range_strings = [f"{s}-{e}" for s, e in right_ranges]
