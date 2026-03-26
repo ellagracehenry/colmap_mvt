@@ -7,6 +7,9 @@ from pathlib import Path
 from collections import defaultdict
 import numpy as np
 from datetime import datetime
+from sklearn.cluster import KMeans
+from scipy.spatial import Voronoi, voronoi_plot_2d
+import matplotlib.pyplot as plt
 
 def read_images_txt(path):
     images = {}
@@ -258,6 +261,65 @@ def chunk_by_temporal_order(images_dict, num_chunks, overlap_ratio=0.1):
             'start_idx': start,
             'end_idx': end
         })
+    return chunks
+    
+def point_to_voronoi_boundary_distance(point, vor, region_index):
+    region = vor.regions[region_index]
+    if -1 in region:
+        return np.inf
+    verticies = vor.vertices[region]
+    distances = np.linalg.norm(vertices-point,axis=1)
+    return np.min(distances)
+    
+def chunk_by_spatial_volume_with_voronoi_overlap(images_dict,num_chunks,overlap_distance):
+    translations = []
+    images_list = list(images_dict.items())
+    
+    for img_id, img_data in images_list:
+        tx,ty,tz=img_data['translation']
+        translations.append((img_id,tx,ty,tz))
+        
+    translations = np.array(translations)
+    coords = translations[:,1:4]
+    
+    kmeans = KMeans(n_clusters=num_chunks,random_state=42,n_init=10)
+    labels = kmeans.fit_predict(coords)
+    cluster_centers = kmeans.cluster_centers_
+    
+    vor = Voronoi(cluster_centers)
+    
+    image_chunk_map = {img_id: [] for img_id, _, _, _ in translations}
+    
+    print(f"Images assigned to initial chunks...")
+    
+    for i, (img_id, x, y, z) in enumerate(translations):
+        distances_to_vertices = [
+          point_to_voronoi_boundary_distance((x,y),vor,region)
+          for region in range(len(vor.regions)) if vor.regions[region]!=[] and i in vor.point_region
+        ]
+        min_distance_to_boundary = np.min(distances_to_vertices) if distances_to_vertices else np.inf
+        
+        if min_distance_to_boundary <= overlap_distance:
+            for cluster_idx in range(num_chunks):
+                image_chunk_map[img_id].append(cluster_idx)
+        else:
+            nearest_cluster = labels[i]
+            image_chunk_map[img_id].append(nearest_cluster)
+            
+    print(f"Cluster boundaries blended...")
+              
+    chunks = []
+    for i in range(num_chunks):
+        chunk_image_ids = [img_id for img_id, clusters in image_chunk_map.items() if i in clusters]
+        chunk_images = {img_id: images_dict[img_id] for img_id in chunk_image_ids}
+        chunks.append({
+            'chunk_id': i,
+            'image_ids':chunk_image_ids,
+            'image_names':[images_dict[img_id]['name'] for img_id in chunk_image_ids],
+            'num_images':len(chunk_image_ids),
+            'center':cluster_centers[i].tolist()
+        })
+        
     return chunks
 
 def chunk_by_spatial_volume(images_dict, num_chunks):
@@ -650,7 +712,7 @@ def main():
         chunks = chunk_by_temporal_order(images_dict, args.num_chunks, args.overlap_ratio)
     else:
         print(f"Creating {args.num_chunks} spatial chunks using K-means clustering")
-        chunks = chunk_by_spatial_volume(images_dict, args.num_chunks)
+        chunks = chunk_by_spatial_volume_with_voronoi_overlap(images_dict, args.num_chunks, args.overlap_ratio)
     
     output_base = Path(args.output_base)
     output_base.mkdir(parents=True, exist_ok=True)
