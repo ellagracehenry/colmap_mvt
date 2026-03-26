@@ -1,8 +1,12 @@
+import sys
+print(sys.executable)
+
 import pickle
 from pprint import pprint
+import numpy as np
 
 # Specify the file path
-file_path = r"C:\Users\ellag\Downloads\tracks_rightimg.pkl"
+file_path = "/Users/ellag/Downloads/tracks_right.pkl"
 #file_path = r"C:\Users\ellag\Desktop\ACADEMIC PROJECTS\3D_tracking_pipeline\colmap\data\tracks\tracks_i_0_cut.pkl"
 
 with open(file_path, "rb") as f:
