@@ -383,56 +383,24 @@ def write_chunk_sparse_txt(sparse_dir, sparse_chunk_dir, chunk_image_ids):
     chunk_ids = set(chunk_image_ids)
     
     images_txt = sparse_path / "images.txt"
-    points3d_txt = sparse_path / "points3D.txt"
+    points3D_txt = sparse_path / "points3D.txt"
     cameras_txt = sparse_path / "cameras.txt"
     cameras_bin = sparse_path / "cameras.bin"
     
     if not images_txt.exists():
         return False, "images.txt not found (run colmap model_converter to create TXT)"
     
-    # --- Write subset images.txt (image line + its 2D point lines for chunk images only) ---
-    in_chunk_block = False
-    with open(images_txt, 'r') as fin, open(out_path / "images.txt", 'w') as fout:
-        for line in fin:
-            if line.startswith('#') or (not line.strip()):
-                fout.write(line)
-                continue
-            parts = line.split()
-            if len(parts) >= 10:
-                try:
-                    image_id = int(parts[0])
-                    in_chunk_block = image_id in chunk_ids
-                except ValueError:
-                    in_chunk_block = False
-            if in_chunk_block:
-                fout.write(line)
-    
-    # --- Write subset points3D.txt (only points visible in at least one chunk image) ---
-    if points3d_txt.exists():
-        with open(points3d_txt, 'r') as fin, open(out_path / "points3D.txt", 'w') as fout:
-            for line in fin:
-                if line.startswith('#') or (not line.strip()):
-                    fout.write(line)
-                    continue
-                parts = line.split()
-                if len(parts) < 8:
-                    continue
-                try:
-                    # POINT3D_ID X Y Z R G B ERROR TRACK_LENGTH [IMAGE_ID POINT2D_IDX ...]
-                    track_len = int(parts[7])
-                    # rest of line: pairs (IMAGE_ID, POINT2D_IDX)
-                    has_chunk_image = False
-                    for k in range(track_len):
-                        idx = 8 + k * 2
-                        if idx + 1 < len(parts):
-                            img_id = int(parts[idx])
-                            if img_id in chunk_ids:
-                                has_chunk_image = True
-                                break
-                    if has_chunk_image:
-                        fout.write(line)
-                except (ValueError, IndexError):
-                    continue
+    # --- Points3d: copy full ---
+    if points3D_txt.exists():
+        shutil.copy2(points3D_txt, out_path / "points3D.txt")
+    elif points3D_bin.exists():
+        shutil.copy2(points3D_bin, out_path / "points3D.bin")
+        
+    # --- images: copy full ---
+    if images_txt.exists():
+        shutil.copy2(images_txt, out_path / "images.txt")
+    elif images_bin.exists():
+        shutil.copy2(images_bin, out_path / "images.bin")
     
     # --- Cameras: copy full (same intrinsics for all chunks) ---
     if cameras_txt.exists():
@@ -440,7 +408,7 @@ def write_chunk_sparse_txt(sparse_dir, sparse_chunk_dir, chunk_image_ids):
     elif cameras_bin.exists():
         shutil.copy2(cameras_bin, out_path / "cameras.bin")
     
-    if not points3d_txt.exists():
+    if not points3D_txt.exists():
         return True, "chunk sparse (images.txt + cameras) written; points3D.txt not found (run model_converter or copy points3D.bin manually)"
     return True, "chunk sparse (TXT) written"
 
