@@ -11,6 +11,7 @@ from sklearn.cluster import KMeans
 from scipy.spatial import Voronoi, voronoi_plot_2d
 import matplotlib.pyplot as plt
 
+
 def read_images_txt(path):
     images = {}
     images_txt = Path(path) / "images.txt"
@@ -253,6 +254,7 @@ def chunk_by_temporal_order(images_dict, num_chunks, overlap_ratio=0.1):
         start = max(0, i * chunk_size - overlap if i > 0 else 0)
         end = min(total, (i + 1) * chunk_size + overlap if i < num_chunks - 1 else total)
         chunk_images = {img_id: img_data for img_id, img_data in sorted_items[start:end]}
+
         chunks.append({
             'chunk_id': i,
             'image_ids': list(chunk_images.keys()),
@@ -262,96 +264,101 @@ def chunk_by_temporal_order(images_dict, num_chunks, overlap_ratio=0.1):
             'end_idx': end
         })
     return chunks
-    
-def point_to_voronoi_boundary_distance(point, vor, region_index):
-    region = vor.regions[region_index]
-    if -1 in region:
-        return np.inf
-    verticies = vor.vertices[region]
-    distances = np.linalg.norm(vertices-point,axis=1)
-    return np.min(distances)
-    
-def chunk_by_spatial_volume_with_voronoi_overlap(images_dict,num_chunks,overlap_distance):
-    translations = []
-    images_list = list(images_dict.items())
-    
-    for img_id, img_data in images_list:
-        tx,ty,tz=img_data['translation']
-        translations.append((img_id,tx,ty,tz))
-        
-    translations = np.array(translations)
-    coords = translations[:,1:4]
-    
-    kmeans = KMeans(n_clusters=num_chunks,random_state=42,n_init=10)
-    labels = kmeans.fit_predict(coords)
-    cluster_centers = kmeans.cluster_centers_
-    
-    vor = Voronoi(cluster_centers)
-    
-    image_chunk_map = {img_id: [] for img_id, _, _, _ in translations}
-    
-    print(f"Images assigned to initial chunks...")
-    
-    for i, (img_id, x, y, z) in enumerate(translations):
-        distances_to_vertices = [
-          point_to_voronoi_boundary_distance((x,y),vor,region)
-          for region in range(len(vor.regions)) if vor.regions[region]!=[] and i in vor.point_region
-        ]
-        min_distance_to_boundary = np.min(distances_to_vertices) if distances_to_vertices else np.inf
-        
-        if min_distance_to_boundary <= overlap_distance:
-            for cluster_idx in range(num_chunks):
-                image_chunk_map[img_id].append(cluster_idx)
-        else:
-            nearest_cluster = labels[i]
-            image_chunk_map[img_id].append(nearest_cluster)
-            
-    print(f"Cluster boundaries blended...")
-              
-    chunks = []
-    for i in range(num_chunks):
-        chunk_image_ids = [img_id for img_id, clusters in image_chunk_map.items() if i in clusters]
-        chunk_images = {img_id: images_dict[img_id] for img_id in chunk_image_ids}
-        chunks.append({
-            'chunk_id': i,
-            'image_ids':chunk_image_ids,
-            'image_names':[images_dict[img_id]['name'] for img_id in chunk_image_ids],
-            'num_images':len(chunk_image_ids),
-            'center':cluster_centers[i].tolist()
-        })
-        
-    return chunks
 
-def chunk_by_spatial_volume(images_dict, num_chunks):
-    translations = []
-    image_list = list(images_dict.items())
+def quat_to_rotation_matrix(qw, qx, qy, qz):
+    """Convert COLMAP quaternion (w, x, y, z) to 3x3 rotation matrix."""
+    R = np.array([
+        [1 - 2*(qy**2 + qz**2),     2*(qx*qy - qz*qw),     2*(qx*qz + qy*qw)],
+        [    2*(qx*qy + qz*qw), 1 - 2*(qx**2 + qz**2),     2*(qy*qz - qx*qw)],
+        [    2*(qx*qz - qy*qw),     2*(qy*qz + qx*qw), 1 - 2*(qx**2 + qy**2)],
+    ])
+    return R
+
+def camera_world_position(img_data):
+    """
+    Compute the camera's world-space position from COLMAP data.
     
-    for img_id, img_data in image_list:
-        tx, ty, tz = img_data['translation']
-        translations.append((img_id, tx, ty, tz))
+    COLMAP stores the *camera-space* translation t, where:
+        x_camera = R * x_world + t
     
-    translations = np.array(translations)
-    coords = translations[:, 1:4]
+    The world position of the camera center is:
+        C = -R^T * t
+    """
+    qw, qx, qy, qz = img_data['rotation']
+    tx, ty, tz = img_data['translation']
+    R = quat_to_rotation_matrix(qw, qx, qy, qz)
+    t = np.array([tx, ty, tz])
+    C = -R.T @ t
+    return C
+
+
+def chunk_by_spatial_volume(images_dict, num_chunks, overlap_distance = 1):
+    """
+    Chunk images by spatial proximity using world-space camera positions.
     
-    from sklearn.cluster import KMeans
+    COLMAP's t vectors are in camera space, NOT world space.
+    We must compute C = -R^T * t first, then cluster.
+    
+    overlap_distance: if set, images within this world-space distance of a
+                      chunk boundary centroid are duplicated into both chunks.
+                      Use None to disable overlap (hard boundaries).
+    """
+    img_ids = list(images_dict.keys())
+    
+    # Compute true world-space positions
+    world_positions = np.array([
+        camera_world_position(images_dict[img_id]) for img_id in img_ids
+    ])
+    
+    # Sanity check: warn if positions look degenerate
+    span = world_positions.max(axis=0) - world_positions.min(axis=0)
+    print(f"  World position span (x,y,z): {span}")
+    if np.max(span) < 1e-6:
+        print("  WARNING: All camera positions are nearly identical — "
+              "check your sparse reconstruction.")
+    
     kmeans = KMeans(n_clusters=num_chunks, random_state=42, n_init=10)
-    labels = kmeans.fit_predict(coords)
+    labels = kmeans.fit_predict(world_positions)
+    cluster_centers = kmeans.cluster_centers_  # also in world space now
+    
+    # Build image->chunk mapping (with optional boundary overlap)
+    image_chunk_map = {img_id: set() for img_id in img_ids}
+    
+    for i, img_id in enumerate(img_ids):
+        primary = int(labels[i])
+        image_chunk_map[img_id].add(primary)
+        
+        if overlap_distance is not None:
+            # Add to any chunk whose center is within overlap_distance
+            pos = world_positions[i]
+
+            dists = np.linalg.norm(cluster_centers - pos, axis = 1)
+
+            dist_to_own = dists[primary]
+
+            other_dists = [(d, c_idx) for c_idx, d in enumerate(dists) if c_idx != primary]
+            nearest_other_dist, nearest_other = min(other_dists)
+
+            if nearest_other_dist < dist_to_own + overlap_distance:
+                image_chunk_map[img_id].add(nearest_other)
     
     chunks = []
     for i in range(num_chunks):
-        mask = labels == i
-        chunk_image_ids = translations[mask, 0].astype(int).tolist()
-        chunk_images = {img_id: images_dict[img_id] for img_id in chunk_image_ids}
+        chunk_image_ids = [
+            img_id for img_id, clusters in image_chunk_map.items() if i in clusters
+        ]
         n = len(chunk_image_ids)
         if n < 10:
-            print(f"WARNING: Spatial chunk {i} has only {n} images; consider using more chunks or temporal strategy")
+            print(f"  WARNING: Spatial chunk {i} has only {n} images — "
+                  f"consider fewer chunks or a larger overlap_distance.")
         chunks.append({
             'chunk_id': i,
             'image_ids': chunk_image_ids,
             'image_names': [images_dict[img_id]['name'] for img_id in chunk_image_ids],
             'num_images': n,
-            'center': kmeans.cluster_centers_[i].tolist()
+            'center': cluster_centers[i].tolist(),
         })
+    
     return chunks
 
 def find_images_directory(base_dense_dir):
@@ -602,30 +609,13 @@ def create_chunk_workspace(base_dense_dir, chunk_info, sparse_dir, output_base, 
     
     # Per-chunk sparse: write subset so dense reconstruction only sees this chunk's images/points
     chunk_image_ids = set(chunk_info.get('image_ids', []))
-    if split_sparse and (Path(sparse_dir) / "images.txt").exists():
+    if (Path(sparse_dir) / "images.txt").exists():
         ok, msg = write_chunk_sparse_txt(sparse_dir, sparse_chunk_dir, chunk_image_ids)
         if ok:
             print(f"Chunk {chunk_id}: {msg}")
         else:
-            print(f"Chunk {chunk_id}: WARNING {msg}; linking full sparse instead")
-            split_sparse = False
-    if not split_sparse:
-        # Link or copy full sparse (legacy: each chunk gets same full model)
-        for bin_file in ['cameras.bin', 'images.bin', 'points3D.bin']:
-            source = Path(sparse_dir) / bin_file
-            if source.exists():
-                target = sparse_chunk_dir / bin_file
-                if not target.exists():
-                    try:
-                        target.symlink_to(source.absolute())
-                    except OSError:
-                        try:
-                            shutil.copy2(source, target)
-                        except Exception as e:
-                            print(f"WARNING: Could not link or copy {bin_file}: {e}")
-        if chunk_id == 0:
-            print(f"Chunk {chunk_id}: Using full sparse model in each chunk. For per-chunk sparse, run: colmap model_converter --input_path <sparse_dir> --output_path <sparse_dir> --output_type TXT")
-    
+            print(f"WARNING: Could not link or copy full sparse")
+
     stereo_dir = chunk_dense_dir / "stereo"
     stereo_dir.mkdir(parents=True, exist_ok=True)
     for subdir in ['depth_maps/left', 'depth_maps/right', 'normal_maps/left', 'normal_maps/right', 'consistency_graphs/left', 'consistency_graphs/right']:
@@ -680,7 +670,7 @@ def main():
         chunks = chunk_by_temporal_order(images_dict, args.num_chunks, args.overlap_ratio)
     else:
         print(f"Creating {args.num_chunks} spatial chunks using K-means clustering")
-        chunks = chunk_by_spatial_volume_with_voronoi_overlap(images_dict, args.num_chunks, args.overlap_ratio)
+        chunks = chunk_by_spatial_volume(images_dict, args.num_chunks, args.overlap_ratio)
     
     output_base = Path(args.output_base)
     output_base.mkdir(parents=True, exist_ok=True)
