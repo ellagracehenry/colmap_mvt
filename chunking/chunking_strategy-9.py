@@ -242,12 +242,12 @@ def _temporal_sort_key(name):
     return (frame, side, name)
 
 
-def chunk_by_temporal_order(images_dict, num_chunks, overlap_ratio=0.1):
+def chunk_by_temporal_order(images_dict, num_chunks, temporal_overlap_ratio=0.1):
     # Sort by (frame, left-then-right) so temporal chunks keep left/right pairs together
     sorted_items = sorted(images_dict.items(), key=lambda x: _temporal_sort_key(x[1]['name']))
     total = len(sorted_items)
     chunk_size = int(total / num_chunks)
-    overlap = int(chunk_size * overlap_ratio)
+    overlap = int(chunk_size * temporal_overlap_ratio)
     
     chunks = []
     for i in range(num_chunks):
@@ -264,108 +264,6 @@ def chunk_by_temporal_order(images_dict, num_chunks, overlap_ratio=0.1):
             'end_idx': end
         })
     return chunks
-    
-def point_to_voronoi_boundary_distance(point, vor, region_index):
-    region = vor.regions[region_index]
-    if -1 in region:
-        return np.inf
-    vertices = vor.vertices[region]
-    distances = np.linalg.norm(vertices-point,axis=1)
-    return np.min(distances)
-    
-# def chunk_by_spatial_volume_with_voronoi_overlap(images_dict,num_chunks,overlap_distance):
-#     translations = []
-#     images_list = list(images_dict.items())
-
-#     for img_id, img_data in images_list:
-#         tx,ty,tz=img_data['translation']
-#         translations.append((img_id,tx,ty,tz))
-        
-#     translations = np.array(translations)
-#     coords = translations[:,1:4]
-
-#     img_ids = [t[0] for t in translations]
-#     coords = np.array([t[1:] for t in translations], dtype=float)
-
-#     kmeans = KMeans(n_clusters=num_chunks,random_state=42,n_init=10)
-#     labels = kmeans.fit_predict(coords) #not working.. putting far away images together
-#     cluster_centers = kmeans.cluster_centers_
-#     print(cluster_centers)
-    
-#     #vor = Voronoi(cluster_centers)
-
-#     #image_chunk_map = {img_id: [] for img_id, _, _, _ in translations}
-
-#     image_chunk_map = {img_id: [] for img_id in img_ids}
-
-#     for img_id, label in zip(img_ids,labels):
-#         image_chunk_map[img_id].append(label)
-    
-#     print(f"Images assigned to initial chunks...")
-    
-#     #Blend cluster boumdaries
-#     # for i, (img_id, x, y, z) in enumerate(translations):
-#     #     distances_to_vertices = [
-#     #       point_to_voronoi_boundary_distance((x,y),vor,region)
-#     #       for region in range(len(vor.regions)) if vor.regions[region]!=[] and i in vor.point_region
-#     #     ]
-#     #     min_distance_to_boundary = np.min(distances_to_vertices) if distances_to_vertices else np.inf
-        
-#     #     if min_distance_to_boundary <= overlap_distance:
-#     #         for cluster_idx in range(num_chunks):
-#     #             image_chunk_map[img_id].append(cluster_idx)
-#     #     else:
-#     #         nearest_cluster = labels[i]
-#     #         image_chunk_map[img_id].append(nearest_cluster)
-            
-#     # print(f"Cluster boundaries blended...")
-              
-#     chunks = []
-#     for i in range(num_chunks):
-#         chunk_image_ids = [img_id for img_id, clusters in image_chunk_map.items() if i in clusters]
-#         chunk_images = {img_id: images_dict[img_id] for img_id in chunk_image_ids}
-#         chunks.append({
-#             'chunk_id': i,
-#             'image_ids':chunk_image_ids,
-#             'image_names':[images_dict[img_id]['name'] for img_id in chunk_image_ids],
-#             'num_images':len(chunk_image_ids),
-#             'center':cluster_centers[i].tolist()
-#         })
-        
-#     return chunks
-
-# def chunk_by_spatial_volume(images_dict, num_chunks):
-#     translations = []
-#     image_list = list(images_dict.items())
-    
-#     for img_id, img_data in image_list:
-#         tx, ty, tz = img_data['translation']
-#         translations.append((img_id, tx, ty, tz))
-    
-#     translations = np.array(translations)
-#     coords = translations[:, 1:4]
-    
-#     from sklearn.cluster import KMeans
-#     kmeans = KMeans(n_clusters=num_chunks, random_state=42, n_init=10)
-#     labels = kmeans.fit_predict(coords)
-    
-#     chunks = []
-#     for i in range(num_chunks):
-#         mask = labels == i
-#         chunk_image_ids = translations[mask, 0].astype(int).tolist()
-#         chunk_images = {img_id: images_dict[img_id] for img_id in chunk_image_ids}
-#         n = len(chunk_image_ids)
-#         if n < 10:
-#             print(f"WARNING: Spatial chunk {i} has only {n} images; consider using more chunks or temporal strategy")
-#         chunks.append({
-#             'chunk_id': i,
-#             'image_ids': chunk_image_ids,
-#             'image_names': [images_dict[img_id]['name'] for img_id in chunk_image_ids],
-#             'num_images': n,
-#             'center': kmeans.cluster_centers_[i].tolist()
-#         })
-#     return chunks
-
 
 def quat_to_rotation_matrix(qw, qx, qy, qz):
     """Convert COLMAP quaternion (w, x, y, z) to 3x3 rotation matrix."""
@@ -394,7 +292,7 @@ def camera_world_position(img_data):
     return C
 
 
-def chunk_by_spatial_volume(images_dict, num_chunks, overlap_distance = 0.5):
+def chunk_by_spatial_volume(images_dict, num_chunks, spatial_overlap_distance = 1):
     """
     Chunk images by spatial proximity using world-space camera positions.
     
@@ -430,7 +328,7 @@ def chunk_by_spatial_volume(images_dict, num_chunks, overlap_distance = 0.5):
         primary = int(labels[i])
         image_chunk_map[img_id].add(primary)
         
-        if overlap_distance is not None:
+        if spatial_overlap_distance is not None:
             # Add to any chunk whose center is within overlap_distance
             pos = world_positions[i]
 
@@ -441,8 +339,9 @@ def chunk_by_spatial_volume(images_dict, num_chunks, overlap_distance = 0.5):
             other_dists = [(d, c_idx) for c_idx, d in enumerate(dists) if c_idx != primary]
             nearest_other_dist, nearest_other = min(other_dists)
 
-            if nearest_other_dist < dist_to_own + overlap_distance:
+            if nearest_other_dist < dist_to_own + spatial_overlap_distance:
                 image_chunk_map[img_id].add(nearest_other)
+                print("adding")
     
     chunks = []
     for i in range(num_chunks):
@@ -462,11 +361,6 @@ def chunk_by_spatial_volume(images_dict, num_chunks, overlap_distance = 0.5):
         })
     
     return chunks
-
-
-def chunk_by_spatial_volume_with_voronoi_overlap(images_dict, num_chunks, overlap_distance):
-    """Spatial chunking with distance-based overlap. Replaces the Voronoi version."""
-    return chunk_by_spatial_volume(images_dict, num_chunks, overlap_distance=overlap_distance)
 
 def find_images_directory(base_dense_dir):
     """Find the images directory, checking multiple possible locations."""
@@ -500,6 +394,8 @@ def write_chunk_sparse_txt(sparse_dir, sparse_chunk_dir, chunk_image_ids):
     points3D_txt = sparse_path / "points3D.txt"
     cameras_txt = sparse_path / "cameras.txt"
     cameras_bin = sparse_path / "cameras.bin"
+    points3D_bin = sparse_path / "points3D.bin"
+    images_bin = sparse_path / "images.bin"
     
     if not images_txt.exists():
         return False, "images.txt not found (run colmap model_converter to create TXT)"
@@ -527,7 +423,7 @@ def write_chunk_sparse_txt(sparse_dir, sparse_chunk_dir, chunk_image_ids):
     return True, "chunk sparse (TXT) written"
 
 
-def create_chunk_workspace(base_dense_dir, chunk_info, sparse_dir, output_base, copy_files=False, split_sparse=True):
+def create_chunk_workspace(base_dense_dir, chunk_info, sparse_dir, output_base, copy_files=False, split_sparse=False):
     """Create workspace for a chunk, linking or copying images as needed."""
     chunk_id = chunk_info['chunk_id']
     chunk_dense_dir = Path(output_base) / f"chunk_{chunk_id:02d}" / "dense"
@@ -716,30 +612,13 @@ def create_chunk_workspace(base_dense_dir, chunk_info, sparse_dir, output_base, 
     
     # Per-chunk sparse: write subset so dense reconstruction only sees this chunk's images/points
     chunk_image_ids = set(chunk_info.get('image_ids', []))
-    if split_sparse and (Path(sparse_dir) / "images.txt").exists():
+    if (Path(sparse_dir) / "images.txt").exists():
         ok, msg = write_chunk_sparse_txt(sparse_dir, sparse_chunk_dir, chunk_image_ids)
         if ok:
             print(f"Chunk {chunk_id}: {msg}")
         else:
-            print(f"Chunk {chunk_id}: WARNING {msg}; linking full sparse instead")
-            split_sparse = False
-    if not split_sparse:
-        # Link or copy full sparse (legacy: each chunk gets same full model)
-        for bin_file in ['cameras.bin', 'images.bin', 'points3D.bin']:
-            source = Path(sparse_dir) / bin_file
-            if source.exists():
-                target = sparse_chunk_dir / bin_file
-                if not target.exists():
-                    try:
-                        target.symlink_to(source.absolute())
-                    except OSError:
-                        try:
-                            shutil.copy2(source, target)
-                        except Exception as e:
-                            print(f"WARNING: Could not link or copy {bin_file}: {e}")
-        if chunk_id == 0:
-            print(f"Chunk {chunk_id}: Using full sparse model in each chunk. For per-chunk sparse, run: colmap model_converter --input_path <sparse_dir> --output_path <sparse_dir> --output_type TXT")
-    
+            print(f"WARNING: Could not link or copy full sparse")
+
     stereo_dir = chunk_dense_dir / "stereo"
     stereo_dir.mkdir(parents=True, exist_ok=True)
     for subdir in ['depth_maps/left', 'depth_maps/right', 'normal_maps/left', 'normal_maps/right', 'consistency_graphs/left', 'consistency_graphs/right']:
@@ -755,12 +634,14 @@ def main():
     parser.add_argument('--dense_dir', type=str, required=True, help='Path to dense directory with images')
     parser.add_argument('--num_chunks', type=int, required=True, help='Number of chunks to create')
     parser.add_argument('--strategy', type=str, choices=['temporal', 'spatial'], default='temporal', help='Chunking strategy')
-    parser.add_argument('--overlap_ratio', type=float, default=0.1, help='Overlap ratio for temporal chunking')
+    parser.add_argument('--temporal_overlap_ratio', type=float, default=0.1, help='Overlap ratio for temporal chunking')
+    parser.add_argument('--spatial_overlap_distance', type=float, default=1, help='Overlap distance for spatial chunking')
     parser.add_argument('--output_base', type=str, required=True, help='Base directory for chunk outputs')
     parser.add_argument('--create_workspaces', action='store_true', help='Create chunk workspace directories')
     parser.add_argument('--copy_files', action='store_true', help='Copy image files instead of creating symlinks (useful if symlinks fail)')
     parser.add_argument('--split_sparse', action='store_true', dest='split_sparse', default=False, help='Use full sparse model in each chunk (legacy). Default is to write per-chunk sparse when images.txt exists (run colmap model_converter first).')
-    
+    parser.add_argument('--max_chunk_size', type=float, default=2000, help='Total number of images (both cams) you want in a chunk. Default 2000.')
+
     args = parser.parse_args()
     
     sparse_path = Path(args.sparse_dir)
@@ -790,11 +671,24 @@ def main():
     print(f"Found {len(images_dict)} registered images")
     
     if args.strategy == 'temporal':
-        print(f"Creating {args.num_chunks} temporal chunks with {args.overlap_ratio*100}% overlap")
-        chunks = chunk_by_temporal_order(images_dict, args.num_chunks, args.overlap_ratio)
+        print(f"Creating {args.num_chunks} temporal chunks with {args.temporal_overlap_ratio*100}% overlap")
+        chunks = chunk_by_temporal_order(images_dict, args.num_chunks, args.temporal_overlap_ratio)
     else:
         print(f"Creating {args.num_chunks} spatial chunks using K-means clustering")
-        chunks = chunk_by_spatial_volume_with_voronoi_overlap(images_dict, args.num_chunks, args.overlap_ratio)
+        num_chunks = args.num_chunks
+        while True:
+            chunks = chunk_by_spatial_volume(images_dict, num_chunks, args.spatial_overlap_distance)
+
+            too_large = any(chunk['num_images'] > args.max_chunk_size
+                            for chunk in chunks
+            )
+
+            if not too_large:
+                print("Chunks are under size threshold! Continuing...")
+                break
+            
+            num_chunks += 1
+            print("Chunks too large - repeating spatial chunking with +1 more chunks.")
     
     output_base = Path(args.output_base)
     output_base.mkdir(parents=True, exist_ok=True)
