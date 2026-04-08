@@ -1,8 +1,8 @@
 #!/bin/bash
 
-PROJECT_NAME="${1:-MM_3fps_7_clean/MM_3fps_7_spatial_2603}"
+PROJECT_NAME="${1:-MM_3fps_7_clean/MM_3fps_7_spatial_0704}"
 PROJECT_DIR="/scratch/alpine/elhe2720/colmap/improve_snorkel/${PROJECT_NAME}"
-NUM_CHUNKS="${2:-5}"
+NUM_CHUNKS="${2:-6}"
 CHUNKING_STRATEGY="${3:-spatial}"
 
 echo "Creating HPC chunking scripts for ${PROJECT_NAME}"
@@ -20,10 +20,10 @@ for CHUNK_ID in $(seq 0 $((NUM_CHUNKS - 1))); do
 #!/bin/bash -l
 #SBATCH --partition=aa100
 #SBATCH --job-name=dense_chunk_${CHUNK_ID}_${PROJECT_NAME}
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --nodes=1
-#SBATCH --ntasks=21
-#SBATCH --time=12:00:00
+#SBATCH --ntasks=42
+#SBATCH --time=5:00:00
 #SBATCH --output=log_chunk_${CHUNK_ID}_%j.out
 #SBATCH --error=log_chunk_${CHUNK_ID}_%j.err
 #SBATCH --mail-type=ALL
@@ -90,22 +90,29 @@ colmap image_undistorter \\
   --input_path ./sparse \\
   --output_path . \\
   --output_type COLMAP \\
-  --max_image_size 1500
+  --max_image_size=1500
 
 echo "image undistorter complete for chunk ${CHUNK_ID}"
 
 colmap patch_match_stereo \\
   --workspace_path . \\
   --workspace_format COLMAP \\
-  --PatchMatchStereo.max_image_size 2000 \\
-  --PatchMatchStereo.geom_consistency true
+  --PatchMatchStereo.geom_consistency=false \\
+  --PatchMatchStereo.filter=true \\
+  --max_image_size=1500 \\
+  --PatchMatchStereo.window_step=2 \\
+  --PatchMatchStereo.num_iterations=3 \\
+  --PatchMatchStereo.num_samples=15 \\
+  --PatchMatchStereo.gpu_index=0,1
+ 
 
 echo "patch match stereo complete for chunk ${CHUNK_ID}"
 
 colmap stereo_fusion \\
   --workspace_path . \\
   --workspace_format COLMAP \\
-  --input_type geometric \\
+  --input_type photometric \\
+  --StereoFusion.max_image_size=1500 \\
   --output_path ./fused_chunk_${CHUNK_ID}.ply
 
 echo "stereo fusion complete for chunk ${CHUNK_ID}"
@@ -122,7 +129,7 @@ cat > "${MERGE_SCRIPT}" << EOF
 #SBATCH --job-name=merge_chunks_${PROJECT_NAME}
 #SBATCH --nodes=1
 #SBATCH --ntasks=20
-#SBATCH --time=2:00:00
+#SBATCH --time=1:00:00
 #SBATCH --output=log_merge_%j.out
 #SBATCH --error=log_merge_%j.err
 #SBATCH --mail-type=ALL
