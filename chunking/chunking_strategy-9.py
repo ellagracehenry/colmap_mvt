@@ -341,7 +341,7 @@ def chunk_by_spatial_volume(images_dict, num_chunks, spatial_overlap_distance = 
 
             if nearest_other_dist < dist_to_own + spatial_overlap_distance:
                 image_chunk_map[img_id].add(nearest_other)
-                print("adding")
+                
     
     chunks = []
     for i in range(num_chunks):
@@ -689,7 +689,20 @@ def main():
             
             num_chunks += 1
             print("Chunks too large - repeating spatial chunking with +1 more chunks.")
-    
+        
+        chunk_sets = [set(chunk['image_names']) for chunk in chunks]
+        counts = []
+
+        for i in range(len(chunk_sets)):
+            for j in range(i + 1, len(chunk_sets)):
+                overlap = chunk_sets[i].intersection(chunk_sets[j])
+                count = len(overlap)
+                counts.append({
+                    'chunk_id_1' : i,
+                    'chunk_id_2' : j,
+                    'overlap' : count
+                })
+
     output_base = Path(args.output_base)
     output_base.mkdir(parents=True, exist_ok=True)
     
@@ -726,6 +739,7 @@ def main():
                     copy_files=args.copy_files,
                     split_sparse=args.split_sparse
                 )
+
                 print(f"✓ Created workspace for chunk {chunk['chunk_id']:02d}: {chunk_dir} ({chunk['num_images']} images)")
                 successful_chunks += 1
             except Exception as e:
@@ -755,6 +769,9 @@ def main():
                 print(f"  Chunk {chunk_id:02d}: {error}")
         else:
             print("✓ All chunks created successfully!")
+            print("printing overlap counts... Rerun with greater spatial overlap if <80. You may get a 0 if it is a linear follow, can ignore.")
+            for count in counts:
+                print(count['overlap'])
 
 if __name__ == '__main__':
     try:
