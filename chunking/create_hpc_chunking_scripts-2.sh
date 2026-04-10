@@ -99,7 +99,7 @@ colmap patch_match_stereo \\
   --workspace_format COLMAP \\
   --PatchMatchStereo.geom_consistency=false \\
   --PatchMatchStereo.filter=true \\
-  --max_image_size=1500 \\
+  --PatchMatchStereo.max_image_size=1500 \\
   --PatchMatchStereo.window_step=2 \\
   --PatchMatchStereo.num_iterations=3 \\
   --PatchMatchStereo.num_samples=15 \\
