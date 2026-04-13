@@ -1,0 +1,9 @@
+1. Remove scuba/snorkel from 1) trial_configs, 2) submit_full_pipeline.sh, 3) runCOLMAP.py
+2. Include sparse temporal chunking strategy in step 2
+3. Ensure correct model selection for dense reconstruction
+4. Include dense spatial chunking strategy in step 3 (automate fully)
+4.a. Save image overlaps 
+5. Include dense merging
+6. Update HerbfishCV with new model weights and logic
+7. Create optional transfer script (get database, sparse, dense cloud and mesh, and tracks)
+
