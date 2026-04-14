@@ -90,7 +90,6 @@ for chunk_file in "${CHUNK_LIST_DIR}"/chunk*.txt; do
             --vocab_tree_path="$vocab_tree_path" \
             --extracted_fps=$extracted_fps \
             --final_fps=$final_fps \
-            --mode="$mode" \
             --no_rename_images \
             --no_run_feat_ext_match \
             --no_run_dense \

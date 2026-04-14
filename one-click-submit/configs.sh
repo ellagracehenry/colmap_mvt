@@ -105,12 +105,6 @@ world_distances=(
    1.0105
 )
 
-# Mode of follow: "snorkel" or "scuba"
-modes=(
-    #"scuba"
-    "scuba"
-)
-
 # Frame rate that was originally extracted (almost always 3)
 extracted_fpss=(
    # 3
