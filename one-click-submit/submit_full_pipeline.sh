@@ -53,7 +53,8 @@ for i in "${!trial_names[@]}"; do
     
     export trial_name frames_path_L frames_path_R mask_path_L mask_path_R observation_id_L observation_id_R PROJECT_DIR \
       annotations_L annotations_R world_distance ROOT_DIR scripts_dir vocab_tree_path extracted_fps final_fps  email \
-      rename_images run_feat_ext_match run_sparse run_dense interpolate_points extract_centroids run_MMC run_AMC run_MVT err_threshold errors_csv_path mode
+      rename_images run_feat_ext_match run_sparse run_dense interpolate_points extract_centroids run_MMC run_AMC run_MVT err_threshold errors_csv_path mode \
+      sparse_chunk_size sparse_chunk_overlap sparse_max_parallel
 
     if [[ "$rename_images" == "True" || "$run_feat_ext_match" == "True" ]]; then
         jid1=$(sbatch --job-name="${trial_name}_step1" --mail-user="$email" --mail-type=ALL step1.sh | awk '{print $4}')

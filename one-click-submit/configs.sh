@@ -14,6 +14,10 @@ run_feat_ext_match=True
 ## Step2.sh processes
 run_sparse=True
 
+sparse_chunk_size=750
+sparse_chunk_overlap=100
+sparse_max_parallel=10
+
 ## Step3.sh processes
 run_dense=True
 extract_centroids=True

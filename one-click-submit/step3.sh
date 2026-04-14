@@ -44,7 +44,7 @@ printf '\n'
 
 echo 'Moving Past Dense Point Cloud Reconstruction'
 
-sparse_dir="$PROJECT_DIR/sparse"
+sparse_dir="$PROJECT_DIR/sparse_merged"
 if [[ "$run_MVT" == True && "$run_dense" == True ]]; then
     largest_size=0
     model_path=""

@@ -79,7 +79,7 @@ def main(project_dir,
 
     # Select the model path that has the largest images.bin
     model_path = None
-    parent_sparse_dir = Path(project_dir) / "sparse"  # Absolute path to the parent sparse directory
+    parent_sparse_dir = Path(project_dir) / "sparse_merged"  # Absolute path to the parent sparse directory
     largest_size = -1
     for subdir in parent_sparse_dir.iterdir():
         if subdir.is_dir():

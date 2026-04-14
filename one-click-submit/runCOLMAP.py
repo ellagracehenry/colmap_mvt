@@ -18,11 +18,14 @@ def run_pipeline(
     rename_images,
     run_feat_ext_match,
     run_sparse,
-    run_dense
+    run_dense,
+    image_list_path=None,
+    output_sparse_dir=None
     
 ):
     import os
     from pathlib import Path
+
     # Step 2: Subsample, rename & reorganize images
     if rename_images==True:
         main(
@@ -37,15 +40,24 @@ def run_pipeline(
     db_path = os.path.join(project_dir, "database.db")
     db_aux_path = os.path.join(project_dir, "database.db-shm")
     img_path = os.path.join(project_dir, "images")
-    left_images_dir = os.path.join(img_path, "left")
-    right_images_dir = os.path.join(img_path, "right")
-    sparse_dir = os.path.join(project_dir, "sparse")
+    
+    if output_sparse_dir is not None:
+        sparse_dir = output_sparse_dir
+    else:
+        sparse_dir = os.path.join(project_dir, "sparse")
+
     dense_dir = os.path.join(project_dir, "dense")
     vocab_tree_path = Path(vocab_tree_path)
     
 
     # Step 3: Run Feature Extraction
     if run_feat_ext_match==True:
+
+        ### Added to remove old db to ensure clean db for re-running ###
+        if os.path.exists(db_path):
+            print("Removing existing database for clean run...")
+            os.remove(db_path)
+
         print(f"\n[2] Running COLMAP feature extraction (OPENCV camera model)...")
         print(f"  Database: {db_path}")
         print(f"  Image path: {img_path}")
@@ -170,10 +182,11 @@ def run_pipeline(
 
     # Step 5: Run Sparse Reconstruction (optimized)
     if run_sparse==True:
-        print(f"\n[3] Running GLOMAP sparse reconstruction...")
+        print(f"\n[3] Running sparse reconstruction...")
         print(f"  Mode of video: {mode}")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{now}] Starting sparse reconstruction...")
+        
         os.makedirs(sparse_dir, exist_ok=True)
         if mode == "scuba":
             cmd = [
@@ -193,21 +206,16 @@ def run_pipeline(
                 "--database_path", str(db_path),
                 "--image_path", str(img_path),
                 "--output_path", str(sparse_dir),
-                #"--Mapper.min_num_matches=10",
-                #"--Mapper.ba_local_max_num_iterations=15",
-                #"--Mapper.ba_global_max_num_iterations=30",
-                #"--Mapper.ba_global_points_freq=500000",
-               # "--Mapper.ba_global_max_refinements=3",
-                #"--Mapper.ba_local_max_refinements=1", 
                 "--Mapper.tri_min_angle=3",
                 "--Mapper.tri_complete_max_reproj_error=3",
                 "--Mapper.tri_merge_max_reproj_error=3"
-               # "--Mapper.init_num_trials=100",
-               # "--Mapper.max_reg_trials=2",
-                # "--Mapper.num_threads=-1"
             ]  
+            if image_list_path is not None:
+                cmd+= ["--image_list_path", str(image_list_path)]
+
         else:
             print(f"Mode {mode} not recognized! Can be 'snorkel' or 'scuba'. Using default scuba settings")
+        
         print(f"  Command: {' '.join(cmd)}")
         print(f"  ⏱️  This may take some time depending on image count...")
         cmd_str = " ".join(cmd)
@@ -230,7 +238,6 @@ def run_pipeline(
         print(f"  ✓ Sparse Reconstruction complete")
 
 
-
     
     # Step 6: Run Dense Reconstruction (optimized)
     if run_dense==True:
@@ -238,8 +245,9 @@ def run_pipeline(
         # Select the sparse path that has the largest images.bin
         model_path = None
         largest_size = -1
-        sparse_dir=Path(sparse_dir)
-        for subdir in sparse_dir.iterdir():
+        sparse_merged_dir=Path(project_dir/"sparse_merged")
+
+        for subdir in sparse_merged_dir.iterdir():
             if subdir.is_dir():
                 img_file = subdir / "images.bin"
                 if img_file.exists():
@@ -395,7 +403,10 @@ if __name__ == "__main__":
     parser.add_argument('--no_run_dense', dest='run_dense',
                     action='store_false',
                     help='Skip dense reconstruction')
-    parser.set_defaults(run_dense=True)   
+    parser.set_defaults(run_dense=True)  
+
+    parser.add_argument('--image_list_path', type=str, default=None)
+    parser.add_argument('--output_sparse_dir', type=str, default=None) 
 
     args = parser.parse_args()
     
@@ -410,6 +421,7 @@ if __name__ == "__main__":
         rename_images=args.rename_images,
         run_feat_ext_match=args.run_feat_ext_match,
         run_sparse=args.run_sparse,
-        run_dense=args.run_dense
-        
+        run_dense=args.run_dense,
+        image_list_path=args.image_list_path,
+        output_sparse_dir=args.output_sparse_dir
     )
