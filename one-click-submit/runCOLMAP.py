@@ -14,7 +14,6 @@ def run_pipeline(
     vocab_tree_path,
     extracted_fps,
     final_fps,
-    mode,
     rename_images,
     run_feat_ext_match,
     run_sparse,
@@ -63,7 +62,6 @@ def run_pipeline(
         print(f"  Image path: {img_path}")
         print(f"  Camera model: OPENCV")
         print(f"  Single camera per folder: 1")
-        print(f"  Mode of video: {mode}")
         
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{now}] Starting feature extraction...")
@@ -104,45 +102,20 @@ def run_pipeline(
         print(f"\n[3] Running COLMAP feature matching...")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{now}] Starting feature matching...")
-        print(f"  Mode of video: {mode}")
 
         if vocab_tree_path.exists():
             print(f"  Using sequential_matcher with vocab_tree (faster)")
-            if mode == "scuba":
-                cmd = [
-                    "colmap", "sequential_matcher",
-                    "--database_path", str(db_path),
-                    "--SequentialMatching.vocab_tree_path", str(vocab_tree_path),
-                    "--SequentialMatching.loop_detection=1",
-                    "--SequentialMatching.loop_detection_period=10",
-                    "--SequentialMatching.loop_detection_num_images=50",
-                    "--SiftMatching.use_gpu=1",
-                    "--SiftMatching.gpu_index=0"
-                ]
-            elif mode == "snorkel":
-                cmd = [
+            cmd = [
                 "colmap", "sequential_matcher",
                 "--database_path", str(db_path),
                 "--SequentialMatching.vocab_tree_path", str(vocab_tree_path),
-                "--SequentialMatching.overlap=100",
                 "--SequentialMatching.loop_detection=1",
                 "--SequentialMatching.loop_detection_period=10",
                 "--SequentialMatching.loop_detection_num_images=50",
                 "--SiftMatching.use_gpu=1",
                 "--SiftMatching.gpu_index=0"
                 ]
-            else:
-                print(f"Mode {mode} not recognized! Can be 'snorkel' or 'scuba'. Using default scuba settings")
-                cmd = [
-                    "colmap", "sequential_matcher",
-                    "--database_path", str(db_path),
-                    "--SequentialMatching.vocab_tree_path", str(vocab_tree_path),
-                    "--SequentialMatching.loop_detection=1",
-                    "--SequentialMatching.loop_detection_period=10",
-                    "--SequentialMatching.loop_detection_num_images=50",
-                    "--SiftMatching.use_gpu=1",
-                    "--SiftMatching.gpu_index=0"
-                ]
+
         else:
             print(f"  ⚠️  Vocab_tree not found at {vocab_tree_path}")
             print(f"  Using sequential_matcher without vocab_tree (may be slower and less accurate)")
@@ -183,39 +156,23 @@ def run_pipeline(
     # Step 5: Run Sparse Reconstruction (optimized)
     if run_sparse==True:
         print(f"\n[3] Running sparse reconstruction...")
-        print(f"  Mode of video: {mode}")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{now}] Starting sparse reconstruction...")
         
         os.makedirs(sparse_dir, exist_ok=True)
-        if mode == "scuba":
-            cmd = [
-                "glomap", "mapper",
-                "--database_path", str(db_path),
-                "--image_path", str(img_path),
-                "--output_path", str(sparse_dir),
-                #"--BundleAdjustment.max_num_iterations=100",
-                #"--ba_iteration_num=8",
-                "--Triangulation.min_angle=3",
-                "--Triangulation.complete_max_reproj_error=3",
-                "--Triangulation.merge_max_reproj_error=3", 
-            ]
-        elif mode == "snorkel":
-            cmd = [
-                "colmap", "mapper",
-                "--database_path", str(db_path),
-                "--image_path", str(img_path),
-                "--output_path", str(sparse_dir),
-                "--Mapper.tri_min_angle=3",
-                "--Mapper.tri_complete_max_reproj_error=3",
-                "--Mapper.tri_merge_max_reproj_error=3"
-            ]  
-            if image_list_path is not None:
-                cmd+= ["--image_list_path", str(image_list_path)]
 
-        else:
-            print(f"Mode {mode} not recognized! Can be 'snorkel' or 'scuba'. Using default scuba settings")
-        
+        cmd = [
+            "colmap", "mapper",
+            "--database_path", str(db_path),
+            "--image_path", str(img_path),
+            "--output_path", str(sparse_dir),
+            "--Mapper.tri_min_angle=3",
+            "--Mapper.tri_complete_max_reproj_error=3",
+            "--Mapper.tri_merge_max_reproj_error=3"
+        ]  
+        if image_list_path is not None:
+            cmd+= ["--image_list_path", str(image_list_path)]
+ 
         print(f"  Command: {' '.join(cmd)}")
         print(f"  ⏱️  This may take some time depending on image count...")
         cmd_str = " ".join(cmd)
@@ -376,7 +333,6 @@ if __name__ == "__main__":
     parser.add_argument('--vocab_tree_path', type=str, required=True, help='Path to vocab tree')
     parser.add_argument('--extracted_fps', type=int, default=3, help='Original FPS of synced & extracted images')
     parser.add_argument('--final_fps', type=int, default=1, help='Overlap ratio for temporal chunking')
-    parser.add_argument('--mode', type=str, required=True, help='Mode of video follow. Can be "snorkel" or "scuba"')
     parser.add_argument('--rename_images', action='store_true',
                     help='Subsample, rename, and reorganize images')
     parser.add_argument('--no_rename_images', dest='rename_images',
@@ -417,7 +373,6 @@ if __name__ == "__main__":
         vocab_tree_path=args.vocab_tree_path,
         extracted_fps=args.extracted_fps,
         final_fps=args.final_fps,
-        mode=args.mode,
         rename_images=args.rename_images,
         run_feat_ext_match=args.run_feat_ext_match,
         run_sparse=args.run_sparse,

@@ -1,15 +1,24 @@
 1. Remove scuba/snorkel from 1) trial_configs, 2) submit_full_pipeline.sh, 3) runCOLMAP.py
+	done
 2. Include sparse temporal chunking strategy in step 2.
+	done
 2.a (optional)- second bundle adjustment after merging? 
+
 3. Ensure correct model selection for dense reconstruction
+	done
 4. Include dense spatial chunking strategy in step 3 (automate fully)
 4.a. Save image overlaps 
 4.b. Make dense chunks 1 gpu instead of 2
 5. Include dense merging (make it dependent on the other 3 jobs completing) 
 6. Update HerbfishCV with new model weights and logic so we can use MMC
-7. get format for mask data, coco files or pkl files
+7. Include config format for mask data: coco files or pkl files
 
 BONUS/LATER: 
 7. Create optional transfer script (get database, sparse, dense cloud and mesh, configs, rugosity?, and tracks).
 8. Trajectory Cleaner/undistorter/rugosity calculator as final step 
+- rugosity calculator: 
+	- what is z axis and what is the origin of the model after MVT? (COLMAP origin is first registered image)
+	- volume of mesh within sphere? or % of sphere surface area intersecting with mesh?  
+	- cylinder as well as sphere (ask Gabe to do this)
+
 
