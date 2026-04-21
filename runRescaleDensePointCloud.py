@@ -15,7 +15,7 @@ print("mvt contents:", dir(mvt))
 project_path = "/scratch/alpine/elhe2720/colmap/project_200725" #change project name
 
 # Define absolute paths for model_path and tracks_path
-model_path = os.path.join(project_path, 'sparse','0')  # Absolute path to the sparse directory
+model_path = os.path.join(project_path, 'sparse','0')  # Absolute path to the sparse directory. Copy dense point cloud into this folder (with the sparse files) if you want to rescale the dense point cloud. 
 #tracks_path = os.path.join(project_path, 'tracks')  # Absolute path to the tracks directory
 
 print("Model path: {model_path}")
