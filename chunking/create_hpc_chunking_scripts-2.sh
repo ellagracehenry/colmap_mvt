@@ -182,7 +182,8 @@ echo "Merging chunked point clouds..."
 python3 merge_chunked_ply.py \\
   --project_dir "\${PROJECT_DIR}" \\
   --num_chunks ${NUM_CHUNKS} \\
-  --output "\${MERGED_OUTPUT}"
+  --output "\${MERGED_OUTPUT}" \\
+  --deduplicate
 
 echo "Merge complete: \${MERGED_OUTPUT}"
 
