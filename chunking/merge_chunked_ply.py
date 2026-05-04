@@ -49,27 +49,28 @@ def read_ply_vertices(file_path):
 def write_merged_ply(output_path, all_vertices):
     num_vertices = len(all_vertices)
     
-    header = f"""ply
-format binary_little_endian 1.0
-element vertex {num_vertices}
-property float x
-property float y
-property float z
-property float nx
-property float ny
-property float nz
-property uchar red
-property uchar green
-property uchar blue
-end_header
-"""
+    header = (
+    "ply\n"
+    "format binary_little_endian 1.0\n"
+    f"element vertex {num_vertices}\n"
+    "property float x\n"
+    "property float y\n"
+    "property float z\n"
+    "property float nx\n"
+    "property float ny\n"
+    "property float nz\n"
+    "property uchar red\n"
+    "property uchar green\n"
+    "property uchar blue\n"
+    "end_header\n"
+    )
     
     with open(output_path, 'wb') as f:
         f.write(header.encode('ascii'))
         
         for vertex in all_vertices:
             x, y, z, nx, ny, nz, r, g, b = vertex
-            f.write(struct.pack('<ffffffBBB', x, y, z, nx, ny, nz, r, g, b))
+            f.write(struct.pack('<ffffffBBB', float(x), float(y), float(z), float(nx), float(ny), float(nz), int(r), int(g), int(b)))
     
     print(f"Merged {num_vertices} vertices into {output_path}")
 
@@ -99,23 +100,34 @@ def main():
         print(f"  Added {len(vertices)} vertices (total: {len(all_vertices)})")
     
     if args.deduplicate:
-        print("Deduplicating points...")
+    
+        print("Deduplicating points in new method...")
         vertices_array = np.array(all_vertices)
         coords = vertices_array[:, :3]
+        voxel_size = 0.001
+        grid = np.floor(coords/voxel_size).astype(np.int64)
+        _, unique_idx = np.unique(grid, axis=0, return_index=True)
+        dedup_vertices = vertices_array[unique_idx]
         
-        from sklearn.neighbors import NearestNeighbors
-        nbrs = NearestNeighbors(n_neighbors=2, algorithm='ball_tree', metric='euclidean')
-        nbrs.fit(coords)
-        distances, indices = nbrs.kneighbors(coords)
+        all_vertices = [tuple(v) for v in dedup_vertices]
         
-        keep_mask = np.ones(len(coords), dtype=bool)
-        for i in range(len(coords)):
-            if not keep_mask[i]:
-                continue
-            close_points = indices[i][distances[i] < 0.001]
-            keep_mask[close_points[1:]] = False
+        #print("Deduplicating points method one...")
+        #vertices_array = np.array(all_vertices)
+        #coords = vertices_array[:, :3]
         
-        all_vertices = [tuple(v) for v in vertices_array[keep_mask]]
+        #from sklearn.neighbors import NearestNeighbors
+        #nbrs = NearestNeighbors(n_neighbors=2, algorithm='ball_tree', metric='euclidean')
+        #nbrs.fit(coords)
+        #distances, indices = nbrs.kneighbors(coords)
+        
+        #keep_mask = np.ones(len(coords), dtype=bool)
+        #for i in range(len(coords)):
+        #    if not keep_mask[i]:
+        #        continue
+        #    close_points = indices[i][distances[i] < 0.001]
+        #    keep_mask[close_points[1:]] = False
+        
+        #all_vertices = [tuple(v) for v in vertices_array[keep_mask]]
         print(f"After deduplication: {len(all_vertices)} vertices")
     
     output_path = Path(args.output)
