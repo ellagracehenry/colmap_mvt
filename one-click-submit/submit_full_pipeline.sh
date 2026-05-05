@@ -75,7 +75,10 @@ for i in "${!trial_names[@]}"; do
         if [[ "$run_sparse" == "True" ]]; then
                 jid2=$(sbatch --job-name="${trial_name}_step2" --dependency=afterok:$jid1 --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
                 echo "Submitted step2: Sparse Reconstruction (COLMAP) with chunking: $jid2"
+            
         fi
+
+        
     else
         if [[ "$run_sparse" == "True" ]]; then
                 jid2=$(sbatch --job-name="${trial_name}_step2" --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
@@ -123,6 +126,11 @@ for i in "${!trial_names[@]}"; do
         fi
     fi
     
+    if [["$run_dense" == "True" ]]; then
+        echo "Dense cloud reconstruction will be automatically submitted after sparse reconstruction"
+    else
+        echo "Skipping dense cloud reconstruction"
+    fi
     echo "For ${trial_name}, jobs are: ${jid1}, ${jid2},${jid3_prep},${chunk_ids},${jid4}. Saved to jobids.txt"
     echo $(date "+%Y-%m-%d %H:%M:%S") >> "${PROJECT_DIR}/jobids.txt"
     echo "Part 1 Job IDs for ${trial_name}: ${jid1},${jid2}" >> "${PROJECT_DIR}/jobids.txt"
