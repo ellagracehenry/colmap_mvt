@@ -37,7 +37,9 @@ extract_centroids=True
 # Note: Will execute with AMC turned-on regardless of specification here
 run_MMC=True
 
-# Run Automatic Mask Cleaner: Removes both known errors and unmarked errors from the SAM2 masks ** Unfortunately, still is overcorrecting
+
+## ! DO NOT USE AMC ! (for now) ##
+# Run Automatic Mask Cleaner (AMC): Removes both known errors and unmarked errors from the SAM2 masks ** Unfortunately, still is overcorrecting
 # Will still run if no observationID is found in the SAM2-errors.csv
 run_AMC=False
 

@@ -26,6 +26,7 @@ python3 merge_chunked_ply.py \
   --project_dir "${PROJECT_DIR}" \
   --num_chunks ${dense_chunk_num} \
   --output "${MERGED_OUTPUT}" \
+  --vox_size 0.005 \
   --deduplicate
 
 echo "Merge complete: ${MERGED_OUTPUT}"

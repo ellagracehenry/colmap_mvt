@@ -16,7 +16,7 @@ def read_ply_header(file_path):
         return b''.join(header_lines), f.tell()
 
 
-def read_ply_vertices(file_path):
+def read_ply_vertices(file_path, vox_size):
     header, data_start = read_ply_header(file_path)
 
     num_vertices = None
@@ -29,7 +29,7 @@ def read_ply_vertices(file_path):
         raise ValueError("Could not find vertex count in PLY header")
 
     seen = set()
-    inv = 1.0 / 0.005
+    inv = 1.0 / vox_size
 
     with open(file_path, 'rb') as f:
         f.seek(data_start)
@@ -85,6 +85,8 @@ def main():
     parser.add_argument('--project_dir', type=str, required=True, help='Project directory containing chunks')
     parser.add_argument('--num_chunks', type=int, required=True, help='Number of chunks to merge')
     parser.add_argument('--output', type=str, required=True, help='Output PLY file path')
+    parser.add_argument('--vox_size', type=float, default=0.005, help='Size of voxel to de-duplicate over')
+
     parser.add_argument('--deduplicate', action='store_true', help='Remove duplicate points (within 1mm)')
 
     args = parser.parse_args()
@@ -92,6 +94,7 @@ def main():
     project_dir = Path(args.project_dir)
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    vox_size=float(args.vox_size)
 
     print(f"Reading {args.num_chunks} chunk files...")
 
@@ -102,7 +105,7 @@ def main():
                 print(f"Warning: {chunk_file} not found, skipping")
                 continue
             print(f"Reading chunk {chunk_id}: {chunk_file}")
-            yield from read_ply_vertices(chunk_file)
+            yield from read_ply_vertices(chunk_file, vox_size)
 
     print(f"\nWriting new non-OOM merged PLY to {output_path}...")
     write_merged_ply(output_path, all_vertices())
