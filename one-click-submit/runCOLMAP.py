@@ -168,7 +168,12 @@ def run_pipeline(
             "--output_path", str(sparse_dir),
             "--Mapper.tri_min_angle=3",
             "--Mapper.tri_complete_max_reproj_error=3",
-            "--Mapper.tri_merge_max_reproj_error=3"
+            "--Mapper.tri_merge_max_reproj_error=3",
+            "--Mapper.ba_global_images_ratio", "1.2",
+            "--Mapper.ba_global_points_ratio", "1.2",
+            "--Mapper.ba_global_max_num_iterations", "20",
+            "--Mapper.ba_global_max_refinements", "3",
+            "--Mapper.ba_global_points_freq", "200000"
         ]  
         if image_list_path is not None:
             cmd+= ["--image_list_path", str(image_list_path)]
@@ -177,20 +182,14 @@ def run_pipeline(
         print(f"  ⏱️  This may take some time depending on image count...")
         cmd_str = " ".join(cmd)
 
-        result = subprocess.run(
-            cmd,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=True
-        )
 
-        print(result.stdout)
-        
-        if result.returncode != 0:
-            print(f"  ✗ Sparse Reconstruction failed:")
-            print(result.stderr[-1000:])
-            sys.exit(1)
+        # Stream output line-by-line so progress is visible in logs during long runs
+        with subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
+            for line in proc.stdout:
+                print(line, end='', flush=True)
+            proc.wait()
+            if proc.returncode != 0:
+                raise RuntimeError(f"Sparse reconstruction failed with return code {proc.returncode}")
 
         print(f"  ✓ Sparse Reconstruction complete")
 

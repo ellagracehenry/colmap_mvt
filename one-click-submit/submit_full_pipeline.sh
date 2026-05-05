@@ -47,52 +47,84 @@ for i in "${!trial_names[@]}"; do
         mkdir "${PROJECT_DIR}"
     fi
     
-    cp configs.sh "${ROOT_DIR}/${trial_name}/configs_used.sh"
+    base_name="configs_used"
+    ext=".sh"
+    dest_file="${PROJECT_DIR}/${base_name}${ext}"
+    
+    # If the file exists, find the next available numbered version
+    if [[ -e "$dest_file" ]]; then
+        i=1
+        while [[ -e "${PROJECT_DIR}/${base_name}_${i}${ext}" ]]; do
+            ((i++))
+        done
+        dest_file="${PROJECT_DIR}/${base_name}_${i}${ext}"
+    fi
+    cp configs.sh "$dest_file"
     
     export trial_name frames_path_L frames_path_R mask_path_L mask_path_R observation_id_L observation_id_R PROJECT_DIR \
       annotations_L annotations_R world_distance ROOT_DIR scripts_dir vocab_tree_path extracted_fps final_fps  email \
       rename_images run_feat_ext_match run_sparse run_dense interpolate_points extract_centroids run_MMC run_AMC run_MVT err_threshold errors_csv_path \
-      sparse_chunk_size sparse_chunk_overlap sparse_max_parallel
+      sparse_chunk_size sparse_chunk_overlap dense_chunk_num dense_spat_overlap dense_mesh
 
+
+    
     if [[ "$rename_images" == "True" || "$run_feat_ext_match" == "True" ]]; then
         jid1=$(sbatch --job-name="${trial_name}_step1" --mail-user="$email" --mail-type=ALL step1.sh | awk '{print $4}')
         echo "Submitted step1 (Image organization and feature matching): $jid1"
-
+        
         if [[ "$run_sparse" == "True" ]]; then
-                jid2=$(sbatch --job-name="${trial_name}_step2" --dependency=afterok:$jid1 --mail-user="$email" --mail-type=ALL --time=10:00:00 step2.sh | awk '{print $4}')
-                echo "Submitted step2: Sparse Reconstruction (COLMAP), allotted 10hrs: $jid2"
-            
-            if [[ "$run_dense" == "True" || "$run_MVT" == "True" ]]; then
-                jid3=$(sbatch --job-name="${trial_name}_step3" --dependency=afterok:$jid2 --mail-user="$email" --mail-type=ALL step3.sh | awk '{print $4}')
-                echo "Submitted step3 (Dense cloud, MVT, and Meshing): $jid3"
-            else
-                echo "Skipping Step 3 (Dense cloud, MVT, and meshing). Set run_dense or run_MVT to True if this is needed"
-            fi
-        else
-            echo "Skipping Step 2 (sparse cloud). Set run_sparse to True if this is needed"
-            if [[ "$run_dense" == "True" || "$run_MVT" == "True" ]]; then
-                jid3=$(sbatch --job-name="${trial_name}_step3" --dependency=afterok:$jid1 --mail-user="$email" --mail-type=ALL step3.sh | awk '{print $4}')
-                echo "Submitted step3 (Dense cloud, MVT, and Meshing): $jid3"
-            else
-                echo "Skipping Step 3 (Dense cloud, MVT, and meshing). Set run_dense or run_MVT to True if this is needed"
-            fi
+                jid2=$(sbatch --job-name="${trial_name}_step2" --dependency=afterok:$jid1 --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
+                echo "Submitted step2: Sparse Reconstruction (COLMAP) with chunking: $jid2"
         fi
     else
-        echo "Skipping Step 1 (Image reorganization and feature matching). Set rename_images or run_feat_ext_match, to True if needed"
         if [[ "$run_sparse" == "True" ]]; then
-            jid2=$(sbatch --job-name="${trial_name}_step2" --mail-user="$email" --mail-type=ALL --time=10:00:00 step2.sh | awk '{print $4}')
-                echo "Submitted step2: Sparse Reconstruction (COLMAP), allotted 10hrs: $jid2"
-
-            if [[ "$run_dense" == "True" || "$run_MVT" == "True" ]]; then
-                jid3=$(sbatch --job-name="${trial_name}_step3" --dependency=afterok:$jid2 --mail-user="$email" --mail-type=ALL step3.sh | awk '{print $4}')
-                echo "Submitted step3 (Dense cloud, MVT, and Meshing): $jid3"
-            else
-                echo "Skipping Step 3 (Dense cloud, MVT, and meshing). Set run_dense or run_MVT to True if this is needed"
-            fi
+                jid2=$(sbatch --job-name="${trial_name}_step2" --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
+                echo "Submitted step2: Sparse Reconstruction (COLMAP) with chunking: $jid2"
+        # Run Step 4 here if already done with sparse reconstruction
         else
-            echo "Skipping Step 2 (sparse cloud). Set run_sparse to True if this is needed"
-            jid3=$(sbatch --job-name="${trial_name}_step3" --mail-user="$email" --mail-type=ALL step3.sh | awk '{print $4}')
-            echo "Submitted step3 (Dense cloud, MVT, and Meshing): $jid3"
+            if [[ "$run_dense" == "True" ]]; then
+                
+                # Step 3a: PREP (Conversion & Chunking) 
+                jid3_prep=$(sbatch --job-name="${trial_name}_prep" --dependency=afterok:$MERGE_JID --mail-user="$email" step3a.sh | awk '{print $4}')
+                echo "Submitted Step 3 Prep (dense chunking): $jid3_prep"
+
+                # Step 3b: SUBMIT CHUNKS
+                chunk_ids=""
+                for (( c=0; c<${dense_chunk_num}; c++ )); do
+                    curr_jid=$(sbatch --job-name="${trial_name}_dense_chunk_${c}" --dependency=afterok:$jid3_prep --export=ALL,CHUNK_IDX=$c step3b.sh | awk '{print $4}')
+
+                    # Build list of Job ID's
+                    if [ -z "$chunk_ids" ]; then
+                        chunk_ids="$curr_jid"
+                    else
+                        chunk_ids="${chunk_ids}:${curr_jid}"
+                    fi
+                done
+
+                echo "Submitted ${dense_chunk_num} chunks: Dependency list ($chunk_ids)"
+                
+                # Step 4: Merge, AMC, MVT, and Dense Meshing
+            
+                if [[ "$run_MVT" == "True" ]]; then
+
+                    jid4=$(sbatch --job-name="${trial_name}_step4" --dependency=afterok:$chunk_ids --mail-user="$email" step4.sh | awk '{print $4}')
+                    echo "Submitted step 4 (merging, MVT, and Meshing): $jid4"
+                
+                fi
+
+            else
+                echo "Skipping Dense Cloud Reconstruction. Set run_dense=True in configs.sh if this step is desired" 
+                if [[ "$run_MVT" == "True" ]]; then
+                    jid4=$(sbatch --job-name="${trial_name}_step4" --mail-user="$email" step4.sh | awk '{print $4}')
+                    echo "Submitted step 4 (merging, MVT, and Meshing): $jid4"
+                fi            
+            fi
+            
         fi
     fi
+    
+    echo "For ${trial_name}, jobs are: ${jid1}, ${jid2},${jid3_prep},${chunk_ids},${jid4}. Saved to jobids.txt"
+    echo $(date "+%Y-%m-%d %H:%M:%S") >> "${PROJECT_DIR}/jobids.txt"
+    echo "Part 1 Job IDs for ${trial_name}: ${jid1},${jid2}" >> "${PROJECT_DIR}/jobids.txt"
+    echo "Part 2 Job IDs for ${trial_name}: ${jid3_prep},${chunk_ids},${jid4}" >> "${PROJECT_DIR}/jobids.txt"
 done

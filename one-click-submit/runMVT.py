@@ -352,15 +352,15 @@ def main(project_dir,
 
     
     # Save rescaled model
-    if run_dense==True:
-        mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(scene.point_cloud),point_dim_m,
+    #if run_dense==True:
+    mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(scene.point_cloud),point_dim_m,
                         file_name=os.path.join(project_dir,"dense", f"{trial_name}_scaled_fused.ply"))
-        print(f"dense rescaled model saved to {trial_name}_scaled_fused.ply")
+    print(f"dense rescaled model saved to {trial_name}_scaled_fused.ply")
 
-    else:
-        mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(scene.point_cloud),point_dim_t,
-                        file_name=os.path.join(project_dir,"sparse", f"{trial_name}_scaled_sparse.ply"))       
-        print(f"sparse_rescaled model saved to {trial_name}_scaled_sparse.ply")
+    #else:
+    #    mvt.utils.write_ply(mvt.utils.pointcloud_to_ply(scene.point_cloud),point_dim_t,
+    #                    file_name=os.path.join(project_dir,"sparse", f"{trial_name}_scaled_sparse.ply"))       
+    #    print(f"sparse_rescaled model saved to {trial_name}_scaled_sparse.ply")
 
 
 # Run Main Loop

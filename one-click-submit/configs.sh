@@ -6,20 +6,31 @@ vocab_tree_path="/projects/maha7624/3D_Tracking/one-click-submit/vocab_tree_flic
 email="maha7624@colorado.edu"
 errors_csv_path="/scratch/alpine/maha7624/3D_Tracking/2024_FF/SAM2_errors_ff_2024.csv"
 
-#### To run specific processes. Can be set to True or False  ####
-## Step1.sh processes
+##### To run specific processes. Can be set to True or False  #####
+
+### Step1.sh processes ###
 rename_images=True
 run_feat_ext_match=True
 
-## Step2.sh processes
+### Step2.sh processes ###
 run_sparse=True
 
-sparse_chunk_size=750
+sparse_chunk_size=500
 sparse_chunk_overlap=100
-sparse_max_parallel=10
 
-## Step3.sh processes
+### Step3.sh processes ###
 run_dense=True
+dense_chunk_num=3
+dense_spat_overlap=5
+
+### Step 4.sh processes ###
+dense_mesh=True
+
+## MultiViewTracks Parameters 
+run_MVT=True
+interpolate_points=False
+err_threshold=0.1
+
 extract_centroids=True
 
 # Run Manual Mask Cleaner: Removes known errors associated in SAM2-errors.csv
@@ -28,11 +39,10 @@ run_MMC=True
 
 # Run Automatic Mask Cleaner: Removes both known errors and unmarked errors from the SAM2 masks ** Unfortunately, still is overcorrecting
 # Will still run if no observationID is found in the SAM2-errors.csv
-run_AMC=True
+run_AMC=False
 
-run_MVT=True
-interpolate_points=False
-err_threshold=0.1
+
+
 
 
 

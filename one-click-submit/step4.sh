@@ -1,68 +1,63 @@
 #!/bin/bash -l
 #SBATCH --partition=aa100
+#SBATCH --ntasks=21
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:2
-#SBATCH --ntasks=42
-#SBATCH --time=5:00:00
-#SBATCH --output=./logs/%j.out # Create a logs folder in your wd if it does not already exist! 
+#SBATCH --gres=gpu:1
+#SBATCH --time=2:00:00
+#SBATCH --output=./logs/%j.out
 #SBATCH --error=./logs/%j.err
+#SBATCH --mail-type=ALL
 #SBATCH --qos=normal
 #SBATCH --account=ucb689_peak1
 
-### This script should run COLMAP dense reconstruction, the AMC, MVT, and dense meshing
-
-
-# Load glomap environment and 
+module purge
 module load miniforge
 mamba activate /projects/maha7624/software/anaconda/envs/glomap_env
+echo "glomap mamba environment activated"
+
+PROJECT_DIR="${PROJECT_DIR}"
+MERGED_OUTPUT="${PROJECT_DIR}/dense/fused_chunked_merged.ply"
+sparse_dir="$PROJECT_DIR/sparse_merged"
 
 cd "$scripts_dir"
 
-# build command
-cmd=(
-    python runCOLMAP.py
-    --project_dir="$PROJECT_DIR"
-    --folder_path_L="$frames_path_L"
-    --folder_path_R="$frames_path_R"
-    --vocab_tree_path="$vocab_tree_path"
-    --extracted_fps=$extracted_fps
-    --final_fps=$final_fps
-    --no_rename_images
-    --no_run_feat_ext_match
-    --no_run_sparse
-)
-if [[ "$run_dense" == "False" ]]; then
-    cmd+=(--no_run_dense)
+echo "Merging chunked point clouds..."
+python3 merge_chunked_ply.py \
+  --project_dir "${PROJECT_DIR}" \
+  --num_chunks ${dense_chunk_num} \
+  --output "${MERGED_OUTPUT}" \
+  --deduplicate
+
+echo "Merge complete: ${MERGED_OUTPUT}"
+
+# Calculate largest sparse model path for MVT
+largest_size=0
+model_path=""
+for d in "$sparse_dir"/*/; do
+    [ -d "$d" ] || continue   # safety if glob fails
+    img_file="${d}images.bin"
+        
+    if [ -f "$img_file" ]; then
+        size=$(stat -c%s "$img_file")
+            
+        if [ "$size" -gt "$largest_size" ]; then
+            largest_size=$size
+            model_path="$d"
+        fi
+    fi
+done
+
+if [ -n "$model_path" ]; then
+    echo "Merged sparse model is $model_path."
+else
+    echo "No merged sparse model with images.bin found!" 
 fi
 
-# Run the COLMAP command
-printf 'Running command:\n'
-printf '  %q' "${cmd[@]}"
-printf '\n'
-"${cmd[@]}"
 
-echo 'Moving Past Dense Point Cloud Reconstruction'
-
-sparse_dir="$PROJECT_DIR/sparse_merged"
-if [[ "$run_MVT" == True && "$run_dense" == True ]]; then
-    largest_size=0
-    model_path=""
-    for d in "$sparse_dir"/*/; do
-        [ -d "$d" ] || continue   # safety if glob fails
-        img_file="${d}images.bin"
-        
-        if [ -f "$img_file" ]; then
-            size=$(stat -c%s "$img_file")
-            
-            if [ "$size" -gt "$largest_size" ]; then
-                largest_size=$size
-                model_path="$d"
-            fi
-        fi
-    done
+if [[ "$run_MVT" == True ]]; then
     if [ -n "$model_path" ]; then
-       cp "$PROJECT_DIR/dense/fused.ply" "$model_path/fused.ply"
-        echo "Copied fused.ply into $model_path for MVT usage"
+        cp "${MERGED_OUTPUT}" "${model_path}/fused.ply"
+        echo "Copied fused_chunked_merged.ply into $model_path for MVT usage"
     else
         echo "No sparse model with images.bin found!" 
     fi
@@ -190,12 +185,13 @@ if [ "$run_MMC" = True ]; then
         --used_AMC
         )
     
+        
         if [[ "$extract_centroids" == "False" ]]; then
             cmd2+=(--no_extract_centroids)
         fi
-        if [[ "$run_dense" == "False" ]]; then
-            cmd2+=(--no_run_dense)
-        fi
+        #if [[ "$run_dense" == "False" ]]; then
+        #    cmd2+=(--no_run_dense)
+        #fi
     
         if [[ "$interpolate_points" == "False" ]]; then
             cmd2+=(--no_interpolate_points)
@@ -211,8 +207,21 @@ else
     if [ "$run_MVT" = True ]; then
         mamba deactivate 
         mamba activate /projects/maha7624/software/anaconda/envs/mvt_env
-    
-        # Run MVT with old format
+        
+        # Extract mask file extensions
+        ext_L="${mask_path_L##*.}"
+        ext_R="${mask_path_R##*.}"
+        ext_L="${ext_L,,}"
+        ext_R="${ext_R,,}"
+
+        # 1) Ensure extensions match
+        if [[ "$ext_L" != "$ext_R" ]]; then
+            echo "Error: masks must be of the same file type: .pkl or .json"
+            exit 1
+        fi
+
+
+        # Run MVT 
         cmd3=(
         python runMVT.py
         --project_dir="$PROJECT_DIR"
@@ -223,16 +232,25 @@ else
         --final_fps=$final_fps
         --world_distance=$world_distance
         --err_threshold=$err_threshold
-        --no_AMC
         )
-    
+        # 2) Check mask extension type
+        if [[ "$ext_L" == "json" ]]; then
+            cmd3+=(--used_AMC)
+            
+        elif [[ "$ext_L" == "pkl" ]]; then
+            cmd3+=(--no_AMC)
+        else
+            echo "Error: unsupported mask file type '$ext_L'"
+            exit 1
+        fi
+        
         if [[ "$extract_centroids" == "False" ]]; then
             cmd3+=(--no_extract_centroids)
         fi
     
-        if [[ "$run_dense" == "False" ]]; then
-            cmd3+=(--no_run_dense)
-        fi
+        #if [[ "$run_dense" == "False" ]]; then
+        #    cmd3+=(--no_run_dense)
+        #fi
     
         if [[ "$interpolate_points" == "False" ]]; then
             cmd3+=(--no_interpolate_points)
@@ -245,17 +263,17 @@ else
 
 fi
 
-# Move and rename rescaled point cloud, if not already done. 
-if [ -f "$PROJECT_DIR/dense/fused.ply" ]; then
-    mv "$PROJECT_DIR/dense/fused.ply" "$PROJECT_DIR/dense/unscaled_fused.ply"
+# Rename unscaled point cloud, if not already done. 
+if [ -f "$PROJECT_DIR/dense/fused_chunked_merged.ply" ]; then
+    cp "$PROJECT_DIR/dense/fused_chunked_merged.ply" "$PROJECT_DIR/dense/unscaled_fused_merged.ply"
 else
-    echo "Warning: fused.ply not found in dense directory, skipping rename."
+    echo "Warning: fused_chunked_merged.ply not found in dense directory, skipping rename."
 fi
 
 
 output_path="${PROJECT_DIR}/dense/${trial_name}_meshed-poisson.ply"
 
-if [ "$run_dense" = True ]; then
+if [ "$dense_mesh" = True ]; then
     # Activate glomap again
     mamba deactivate 
     mamba activate /projects/maha7624/software/anaconda/envs/glomap_env   
@@ -264,7 +282,7 @@ if [ "$run_dense" = True ]; then
     if [ "$run_MVT" = True ]; then
         colmap poisson_mesher --input_path "$PROJECT_DIR/dense/${trial_name}_scaled_fused.ply" --output_path "$output_path" --PoissonMeshing.depth=13
     else
-        colmap poisson_mesher --input_path "$PROJECT_DIR/dense/unscaled_fused.ply" --output_path "$output_path"
+        colmap poisson_mesher --input_path "$PROJECT_DIR/dense/unscaled_fused_merged.ply" --output_path "${PROJECT_DIR}/dense/${trial_name}_unscaled-meshed-poisson.ply"
     fi
 fi
 
