@@ -18,27 +18,12 @@ cd "$scripts_dir"
 sparse_dir="$PROJECT_DIR/sparse_merged"
 
 
-largest_size=0
-model_path=""
-for d in "$sparse_dir"/*/; do
-    [ -d "$d" ] || continue   # safety if glob fails
-    img_file="${d}images.bin"
-        
-    if [ -f "$img_file" ]; then
-        size=$(stat -c%s "$img_file")
-            
-        if [ "$size" -gt "$largest_size" ]; then
-            largest_size=$size
-            model_path="$d"
-        fi
-    fi
-done
+model_path="${sparse_dir}/cross_ABC"
 
 if [ -n "$model_path" ]; then
     echo "Merged sparse model is $model_path."
-else
-    echo "No merged sparse model with images.bin found!" 
 fi
+
 
 # Convert sparse .bin files to .txt
 echo "running sparse conversion on ${model_path}"

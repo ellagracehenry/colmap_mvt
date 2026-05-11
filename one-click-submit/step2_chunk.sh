@@ -9,9 +9,10 @@
 #SBATCH --partition=amilan
 #SBATCH --nodes=1
 #SBATCH --ntasks=16
-#SBATCH --time=12:00:00
+#SBATCH --time=16:00:00
 #SBATCH --output=./logs/%A_%a.out
 #SBATCH --error=./logs/%A_%a.err
+#SBATCH --mail-user="${email}"
 #SBATCH --qos=normal
 #SBATCH --account=ucb689_peak1
 
@@ -30,9 +31,22 @@ mamba activate /projects/maha7624/software/anaconda/envs/glomap_env
 CHUNK_LIST_DIR="${PROJECT_DIR}/image_lists"
 SPARSE_CHUNK_DIR="${PROJECT_DIR}/sparse_chunks"
 
-CHUNK_INDEX=$(printf '%04d' "${SLURM_ARRAY_TASK_ID}")
-CHUNK_FILE="${CHUNK_LIST_DIR}/chunk${CHUNK_INDEX}.txt"
-OUT_DIR="${SPARSE_CHUNK_DIR}/chunk${CHUNK_INDEX}"
+TASK_ID=${SLURM_ARRAY_TASK_ID}
+
+if [ "$TASK_ID" -le "$N_A" ]; then
+    SET_NAME="setA"
+    SET_IDX=$TASK_ID
+elif [ "$TASK_ID" -le "$((N_A + N_B))" ]; then
+    SET_NAME="setB"
+    SET_IDX=$((TASK_ID - N_A))
+else
+    SET_NAME="setC"
+    SET_IDX=$((TASK_ID - N_A - N_B))
+fi
+
+CHUNK_INDEX=$(printf '%04d' "${SET_IDX}")
+CHUNK_FILE="${CHUNK_LIST_DIR}/${SET_NAME}_chunk${CHUNK_INDEX}.txt"
+OUT_DIR="${SPARSE_CHUNK_DIR}/${SET_NAME}_chunk${CHUNK_INDEX}"
 
 mkdir -p "$OUT_DIR"
 
@@ -53,7 +67,7 @@ echo "Local scratch: $SLURM_SCRATCH"
 # work is the highest-performance option available.
 # Files in $SLURM_SCRATCH are deleted automatically when the job ends.
 #########################
-LOCAL_DIR="${SLURM_SCRATCH}/chunk${CHUNK_INDEX}"
+LOCAL_DIR="${SLURM_SCRATCH}/${SET_NAME}_chunk${CHUNK_INDEX}"
 mkdir -p "${LOCAL_DIR}"
 
 echo "Staging database to local scratch..."

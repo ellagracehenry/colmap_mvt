@@ -78,18 +78,9 @@ def main(project_dir,
     print("mvt contents:", dir(mvt))
 
     # Select the model path that has the largest images.bin
-    model_path = None
-    parent_sparse_dir = Path(project_dir) / "sparse_merged"  # Absolute path to the parent sparse directory
-    largest_size = -1
-    for subdir in parent_sparse_dir.iterdir():
-        if subdir.is_dir():
-            img_file = subdir / "images.bin"
-            if img_file.exists():
-                size = img_file.stat().st_size
-                if size > largest_size:
-                    largest_size = size
-                    model_path = subdir
-
+    
+    sparse_merged_dir=os.path.join(project_dir,"sparse_merged")
+    model_path=os.path.join(sparse_merged_dir,"cross_ABC")
     print(f"Sparse model used is {model_path}.")
     
     # Define absolute paths for tracks_path
@@ -273,9 +264,32 @@ def main(project_dir,
 
             pts_3d.append(np.array(frame_pts))
             frame_indices.append(idx)
+        
+        # values
+        retained_positions = len(frame_indices)
+        removed_positions = len(deleted_errors)
+        total_positions = retained_positions + removed_positions
 
-        print(f"{len(deleted_errors)} positions were removed due to triangulation error above {err_threshold}.")
-        print(f"{len(frame_indices)} positions were retained for the track.")
+        # path to csv
+        csv_path = os.path.join(project_dir, "sum_stats.csv")
+
+        # row to add
+        new_row = pd.DataFrame([{
+            "trial_name": trial_name,
+            "retained_positions": retained_positions,
+            "total_positions": total_positions
+        }])
+
+        # append if file exists, otherwise create it
+        if os.path.exists(csv_path):
+            new_row.to_csv(csv_path, mode='a', header=False, index=False)
+        else:
+            new_row.to_csv(csv_path, index=False)
+
+        # optional print statements
+        print(f"{removed_positions} positions were removed due to triangulation error above {err_threshold}.")
+        print(f"{retained_positions} positions were retained for the track.")
+
 
         if len(frame_indices) == 0:
             print("No positions of sufficient quality were retained. Quitting triangulation. Check masks and fused.ply for massive errors")

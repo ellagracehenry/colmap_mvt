@@ -198,19 +198,8 @@ def run_pipeline(
     # Step 6: Run Dense Reconstruction (optimized)
     if run_dense==True:
     
-        # Select the sparse path that has the largest images.bin
-        model_path = None
-        largest_size = -1
         sparse_merged_dir=Path(project_dir/"sparse_merged")
-
-        for subdir in sparse_merged_dir.iterdir():
-            if subdir.is_dir():
-                img_file = subdir / "images.bin"
-                if img_file.exists():
-                    size = img_file.stat().st_size
-                    if size > largest_size:
-                        largest_size = size
-                        model_path = subdir
+        model_path=Path(sparse_merged_dir/"cross_ABC")
         
         print(f"Sparse model used is {model_path}.")
 

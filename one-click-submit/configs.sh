@@ -20,6 +20,7 @@ sparse_chunk_overlap=100
 
 ### Step3.sh processes ###
 run_dense=True
+# Run 9 dense chunks for a full 20m follow
 dense_chunk_num=3
 dense_spat_overlap=5
 
@@ -46,9 +47,8 @@ run_AMC=False
 
 
 
-
-
 #### Batch parameters  ####
+
 ## List a value for every trial you want to run ##
 
 # This will be the name of the trial folder within your root dir

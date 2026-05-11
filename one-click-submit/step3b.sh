@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=21
-#SBATCH --time=3:00:00
+#SBATCH --time=5:00:00
 #SBATCH --output=./logs/%j.out
 #SBATCH --error=./logs/%j.err
 #SBATCH --mail-type=ALL

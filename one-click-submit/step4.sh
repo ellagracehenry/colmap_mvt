@@ -19,34 +19,24 @@ PROJECT_DIR="${PROJECT_DIR}"
 MERGED_OUTPUT="${PROJECT_DIR}/dense/fused_chunked_merged.ply"
 sparse_dir="$PROJECT_DIR/sparse_merged"
 
+chunk_dir="${PROJECT_DIR}/chunks"
 cd "$scripts_dir"
+num_chunks=$(find "$chunk_dir" -maxdepth 1 -mindepth 1 -type d | wc -l)
+
 
 echo "Merging chunked point clouds..."
 python3 merge_chunked_ply.py \
   --project_dir "${PROJECT_DIR}" \
-  --num_chunks ${dense_chunk_num} \
+  --num_chunks ${num_chunks} \
   --output "${MERGED_OUTPUT}" \
   --vox_size 0.005 \
   --deduplicate
 
 echo "Merge complete: ${MERGED_OUTPUT}"
 
-# Calculate largest sparse model path for MVT
-largest_size=0
-model_path=""
-for d in "$sparse_dir"/*/; do
-    [ -d "$d" ] || continue   # safety if glob fails
-    img_file="${d}images.bin"
-        
-    if [ -f "$img_file" ]; then
-        size=$(stat -c%s "$img_file")
-            
-        if [ "$size" -gt "$largest_size" ]; then
-            largest_size=$size
-            model_path="$d"
-        fi
-    fi
-done
+# Get the merged sparse model
+model_path="${sparse_dir}/cross_ABC"
+
 
 if [ -n "$model_path" ]; then
     echo "Merged sparse model is $model_path."
@@ -60,7 +50,8 @@ if [[ "$run_MVT" == True ]]; then
         cp "${MERGED_OUTPUT}" "${model_path}/fused.ply"
         echo "Copied fused_chunked_merged.ply into $model_path for MVT usage"
     else
-        echo "No sparse model with images.bin found!" 
+        echo "No sparse model called 'cross_ABC' found!" 
+        exit 1
     fi
 fi
 
@@ -290,5 +281,5 @@ fi
 if [ -f "$output_path" ]; then
     echo "✓ Poisson mesher complete: $output_path"
 else
-    echo "✗ Warning: Final poisson mesh not created"
+    echo "✗ Warning: Final scaled poisson mesh not created"
 fi
