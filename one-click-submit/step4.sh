@@ -1,9 +1,9 @@
 #!/bin/bash -l
-#SBATCH --partition=aa100
-#SBATCH --ntasks=21
+#SBATCH --partition=amilan
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:1
-#SBATCH --time=2:00:00
+#SBATCH --ntasks=1
+#SBATCH --mem=200G
+#SBATCH --time=4:00:00
 #SBATCH --output=./logs/%j.out
 #SBATCH --error=./logs/%j.err
 #SBATCH --mail-type=ALL
@@ -30,7 +30,7 @@ python3 merge_chunked_ply.py \
   --num_chunks ${num_chunks} \
   --output "${MERGED_OUTPUT}" \
   --vox_size 0.005 \
-  --deduplicate
+  --deduplicate 
 
 echo "Merge complete: ${MERGED_OUTPUT}"
 
@@ -38,25 +38,17 @@ echo "Merge complete: ${MERGED_OUTPUT}"
 model_path="${sparse_dir}/cross_ABC"
 
 
-if [ -n "$model_path" ]; then
-    echo "Merged sparse model is $model_path."
-else
-    echo "No merged sparse model with images.bin found!" 
-fi
-
-
 if [[ "$run_MVT" == True ]]; then
     if [ -n "$model_path" ]; then
+        echo "Merged sparse model is $model_path."
         cp "${MERGED_OUTPUT}" "${model_path}/fused.ply"
         echo "Copied fused_chunked_merged.ply into $model_path for MVT usage"
     else
         echo "No sparse model called 'cross_ABC' found!" 
-        exit 1
     fi
 fi
 
 echo 'Moving onto Automatic Mask Cleaning & MVT'
-
 
 if [ "$run_MMC" = True ]; then
     cd herbfishCV
@@ -281,5 +273,5 @@ fi
 if [ -f "$output_path" ]; then
     echo "✓ Poisson mesher complete: $output_path"
 else
-    echo "✗ Warning: Final scaled poisson mesh not created"
+    echo "✗ Warning: Final poisson mesh not created"
 fi

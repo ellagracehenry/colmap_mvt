@@ -75,49 +75,33 @@ for i in "${!trial_names[@]}"; do
         if [[ "$run_sparse" == "True" ]]; then
                 jid2=$(sbatch --job-name="${trial_name}_step2" --dependency=afterok:$jid1 --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
                 echo "Submitted step2: Sparse Reconstruction (COLMAP) with chunking: $jid2"
-            
         fi
-
-        
+        if [[ "$run_dense" == "True" ]]; then
+            echo "Dense cloud reconstruction and MVT (steps 3 & 4) will be automatically submitted after sparse reconstruction"
+        fi
     else
         if [[ "$run_sparse" == "True" ]]; then
-                jid2=$(sbatch --job-name="${trial_name}_step2" --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
-                echo "Submitted step2: Sparse Reconstruction (COLMAP) with chunking: $jid2"
-        # Run Step 4 here if already done with sparse reconstruction
+            jid2=$(sbatch --job-name="${trial_name}_step2" --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
+            echo "Submitted step2: Sparse Reconstruction (COLMAP) with chunking: $jid2"
+            
+            if [["$run_dense" == "True" ]]; then
+                echo "Dense cloud reconstruction and MVT (steps 3 & 4) will be automatically submitted after sparse reconstruction"
+            fi    
+            
+        # Queue Step 3 here if already done with sparse reconstruction
         else
             if [[ "$run_dense" == "True" ]]; then
                 
                 # Step 3a: PREP (Conversion & Chunking) 
-                jid3_prep=$(sbatch --job-name="${trial_name}_prep" --dependency=afterok:$MERGE_JID --mail-user="$email" step3a.sh | awk '{print $4}')
+                jid3_prep=$(sbatch --job-name="${trial_name}_prep" --mail-user="$email" step3a.sh | awk '{print $4}')
                 echo "Submitted Step 3 Prep (dense chunking): $jid3_prep"
-
-                # Step 3b: SUBMIT CHUNKS
-                chunk_ids=""
-                for (( c=0; c<${dense_chunk_num}; c++ )); do
-                    curr_jid=$(sbatch --job-name="${trial_name}_dense_chunk_${c}" --dependency=afterok:$jid3_prep --export=ALL,CHUNK_IDX=$c step3b.sh | awk '{print $4}')
-
-                    # Build list of Job ID's
-                    if [ -z "$chunk_ids" ]; then
-                        chunk_ids="$curr_jid"
-                    else
-                        chunk_ids="${chunk_ids}:${curr_jid}"
-                    fi
-                done
-
-                echo "Submitted ${dense_chunk_num} chunks: Dependency list ($chunk_ids)"
                 
-                # Step 4: Merge, AMC, MVT, and Dense Meshing
-            
-                if [[ "$run_MVT" == "True" ]]; then
-
-                    jid4=$(sbatch --job-name="${trial_name}_step4" --dependency=afterok:$chunk_ids --mail-user="$email" step4.sh | awk '{print $4}')
-                    echo "Submitted step 4 (merging, MVT, and Meshing): $jid4"
-                
-                fi
-
+                if [[ "$run_MVT" == "True" || "$dense_mesh" == "True" ]]; then
+                    echo "Dense cloud meshing and MVT (step 4) will be automatically submitted after dense chunk prep."
+                fi  
             else
                 echo "Skipping Dense Cloud Reconstruction. Set run_dense=True in configs.sh if this step is desired" 
-                if [[ "$run_MVT" == "True" ]]; then
+                if [[ "$run_MVT" == "True" || "$dense_mesh" == "True" ]]; then
                     jid4=$(sbatch --job-name="${trial_name}_step4" --mail-user="$email" step4.sh | awk '{print $4}')
                     echo "Submitted step 4 (merging, MVT, and Meshing): $jid4"
                 fi            
@@ -126,13 +110,8 @@ for i in "${!trial_names[@]}"; do
         fi
     fi
     
-    if [["$run_dense" == "True" ]]; then
-        echo "Dense cloud reconstruction will be automatically submitted after sparse reconstruction"
-    else
-        echo "Skipping dense cloud reconstruction"
-    fi
     echo "For ${trial_name}, jobs are: ${jid1}, ${jid2},${jid3_prep},${chunk_ids},${jid4}. Saved to jobids.txt"
     echo $(date "+%Y-%m-%d %H:%M:%S") >> "${PROJECT_DIR}/jobids.txt"
-    echo "Part 1 Job IDs for ${trial_name}: ${jid1},${jid2}" >> "${PROJECT_DIR}/jobids.txt"
-    echo "Part 2 Job IDs for ${trial_name}: ${jid3_prep},${chunk_ids},${jid4}" >> "${PROJECT_DIR}/jobids.txt"
+    echo "Part 1 Job IDs for ${trial_name}:: Feature Extract/Match: ${jid1}, Sparse prep: ${jid2}" >> "${PROJECT_DIR}/jobids.txt"
+    echo "Part 2 Job IDs for ${trial_name}:: Dense chunk prep: ${jid3_prep}, Dense mesh and MVT: ${jid4}" >> "${PROJECT_DIR}/jobids.txt"
 done

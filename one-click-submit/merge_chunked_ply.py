@@ -85,17 +85,17 @@ def main():
     parser.add_argument('--project_dir', type=str, required=True, help='Project directory containing chunks')
     parser.add_argument('--num_chunks', type=int, required=True, help='Number of chunks to merge')
     parser.add_argument('--output', type=str, required=True, help='Output PLY file path')
-    parser.add_argument('--vox_size', type=float, default=0.005, help='Size of voxel to de-duplicate over')
+    parser.add_argument('--vox_size', type=float, help='Voxel size to deduplicate over')
 
     parser.add_argument('--deduplicate', action='store_true', help='Remove duplicate points (within 1mm)')
+
 
     args = parser.parse_args()
 
     project_dir = Path(args.project_dir)
     output_path = Path(args.output)
+    vox_size=args.vox_size
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    vox_size=float(args.vox_size)
-
     print(f"Reading {args.num_chunks} chunk files...")
 
     def all_vertices():
@@ -104,7 +104,7 @@ def main():
             if not chunk_file.exists():
                 print(f"Warning: {chunk_file} not found, skipping")
                 continue
-            print(f"Reading chunk {chunk_id}: {chunk_file}")
+            print(f"Reading chunk {chunk_id}: {chunk_file}. Deduplicating over {vox_size} voxel size")
             yield from read_ply_vertices(chunk_file, vox_size)
 
     print(f"\nWriting new non-OOM merged PLY to {output_path}...")
