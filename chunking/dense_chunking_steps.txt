@@ -1,0 +1,53 @@
+#Step 1: Run image undistorter on all images (~2 minutes)
+colmap image_undistorter \
+  --image_path images \
+  --input_path /scratch/alpine/elhe2720/colmap/improve_snorkel/3DTracking_Oneclick/2023_FF/ER_070323_38_interweav_newdense/sparse_merged/cross_ABC \
+  --output_path dense \
+  --output_type COLMAP \
+  --max_image_size=1500
+  
+  
+  
+  
+#Step 2: Split up the patch_match.cfg file to chunk patch match
+cd ${PROJECT_DIR}/dense/stereo
+split -l 1500 patch_match.cfg chunk_cfg_
+
+
+
+
+#Step 3: Run patch match stereo on each chunked patch_match.cfg file, changing the config path each time. (~1 hour for 750 images total across l and r, I actually ran them in an interactive node...). Potentially a concern with writing depth maps simultaneously to the same folder if jobs run at the same time, but depth maps will have unique names. 
+colmap patch_match_stereo --workspace_path ${PROJECT_DIR}/dense --PatchMatchStereo.geom_consistency=false --PatchMatchStereo.filter=true --PatchMatchStereo.max_image_size=1500 --PatchMatchStereo.window_step=2 --PatchMatchStereo.num_iterations=3 --PatchMatchStereo.num_samples=15 --PatchMatchStereo.gpu_index=0 --config_path ${PROJECT_DIR}/dense/stereo/chunk_cfg_aa.cfg #Chunk cfg files get named aa, ab, ac
+
+
+
+
+
+#Step 4: Run stereo fusion on the dense folder on anem
+#!/bin/bash -l
+#SBATCH --partition=amem
+#SBATCH --qos=mem
+#SBATCH --nodes=1
+#SBATCH --ntasks=32
+#SBATCH --mem=356G
+#SBATCH --time=2:00:00
+#SBATCH --output=./logs/%j.out
+#SBATCH --error=./logs/%j.err
+#SBATCH --mail-type=ALL
+#SBATCH --account=ucb689_peak1
+
+module purge
+module load miniforge
+mamba activate /projects/maha7624/software/anaconda/envs/glomap_env
+
+colmap stereo_fusion \
+    --workspace_path ${PROJECT_DIR}/dense \
+    --workspace_format COLMAP \
+    --input_type photometric \
+    --StereoFusion.max_image_size 1500 \
+    --StereoFusion.num_threads 32 \
+    --output_path ${PROJECT_DIR}/dense/fused.ply
+
+echo "stereo_fusion complete"
+
+  
