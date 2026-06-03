@@ -2,8 +2,8 @@
 #SBATCH --partition=aa100
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
-#SBATCH --ntasks=21
-#SBATCH --time=4:00:00
+#SBATCH --ntasks=10
+#SBATCH --time=12:00:00
 #SBATCH --output=./logs/%j.out # Create a logs folder in your wd if it does not already exist! 
 #SBATCH --error=./logs/%j.err
 #SBATCH --qos=normal

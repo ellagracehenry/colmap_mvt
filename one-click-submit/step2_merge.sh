@@ -6,16 +6,19 @@
 #########################
 #SBATCH --partition=amilan
 #SBATCH --nodes=1
-#SBATCH --ntasks=5
-#SBATCH --time=01:00:00
-#SBATCH --output=./logs/%j_merge.out
-#SBATCH --error=./logs/%j_merge.err
+#SBATCH --ntasks=20
+#SBATCH --mem=60G
+#SBATCH --time=15:00:00
+#SBATCH --output=./logs/%j.out
+#SBATCH --error=./logs/%j.err
 #SBATCH --qos=normal
 #SBATCH --account=ucb689_peak1
+#SBATCH --mail-type=ALL
 
 set -e
 
 echo "STEP 2 [MERGE]: Within-set merge then cross-set merge"
+
 
 cd "$scripts_dir"
 
@@ -61,6 +64,24 @@ def read_image_names(path):
         print(f"WARNING: could not read {path}: {e}", file=sys.stderr)
     return names
 '
+
+#########################
+# BUNDLE ADJUSTMENT HELPER
+# Runs BA in-place: reads from $1, writes to $1_ba, then
+# replaces $1 symlink so callers always see the adjusted model.
+#########################
+run_ba() {
+    local model_in=$1
+    local model_ba="${model_in}_ba"
+    mkdir -p "$model_ba"
+    echo "    [BA] Running bundle adjustment: $model_in → $model_ba" >&2
+    colmap bundle_adjuster \
+        --input_path  "$model_in" \
+        --output_path "$model_ba" \
+        --BundleAdjustment.max_num_iterations 20
+    echo "$model_ba"
+}
+
 
 #########################
 # SUBMODEL SELECTION
@@ -137,6 +158,10 @@ with open(out_file, "w") as f:
 PYEOF
 }
 
+N_A=$(find "$SPARSE_CHUNK_DIR" -maxdepth 1 -type d -name 'setA_chunk*' | wc -l)
+N_B=$(find "$SPARSE_CHUNK_DIR" -maxdepth 1 -type d -name 'setB_chunk*' | wc -l)
+N_C=$(find "$SPARSE_CHUNK_DIR" -maxdepth 1 -type d -name 'setC_chunk*' | wc -l)
+
 SEL_A="${MERGED_DIR}/selected_setA.txt"
 SEL_B="${MERGED_DIR}/selected_setB.txt"
 SEL_C="${MERGED_DIR}/selected_setC.txt"
@@ -193,7 +218,7 @@ PYEOF
             --input_path2 "$next" \
             --output_path "$out"
 
-        current="$out"
+        current=$(run_ba "$out")
     done
 
     if [ ${#broken[@]} -gt 0 ]; then
@@ -260,26 +285,30 @@ PYEOF
         --input_path2 "$model2" \
         --output_path "$out"
 
-    echo "$out"
+    # Bundle-adjust the cross-set merged result
+    local out_ba
+    out_ba=$(run_ba "$out")
+    echo "$out_ba"
 }
 
-MODEL_AB=$(cross_merge "A + B" "$MODEL_A" "$MODEL_B" "${MERGED_DIR}/cross_AB")
-FINAL_MODEL=$(cross_merge "AB + C" "$MODEL_AB" "$MODEL_C" "${MERGED_DIR}/cross_ABC")
+MODEL_AB=$(cross_merge "A + B" "${MODEL_A}" "${MODEL_B}" "${MERGED_DIR}/cross_AB")
+FINAL_MODEL=$(cross_merge "AB + C" "${MODEL_AB}" "${MODEL_C}" "${MERGED_DIR}/cross_ABC")
 
 #########################
 # OPTIONAL BUNDLE ADJUSTMENT
 #########################
 # Uncomment to enable:
-# FINAL_BA="${MERGED_DIR}/final_model_ba"
-# mkdir -p "$FINAL_BA"
-# colmap bundle_adjuster \
+#FINAL_BA="${MERGED_DIR}/final_model_ba"
+#mkdir -p "$FINAL_BA"
+#colmap bundle_adjuster \
 #     --input_path "$FINAL_MODEL" \
-#     --output_path "$FINAL_BA"
-# FINAL_MODEL="$FINAL_BA"
+#     --output_path "$FINAL_BA" \
+#     --BundleAdjustment.max_num_iterations 20
+#FINAL_MODEL="$FINAL_BA"
 
 #########################
 # DONE
 #########################
 echo "============================================================"
 echo "Step 2 [MERGE ALT] COMPLETE"
-echo "Final model: $FINAL_MODEL"
+echo "Final model: ${FINAL_MODEL}_ba"

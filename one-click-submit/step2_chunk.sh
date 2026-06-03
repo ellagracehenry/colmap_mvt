@@ -9,7 +9,7 @@
 #SBATCH --partition=amilan
 #SBATCH --nodes=1
 #SBATCH --ntasks=16
-#SBATCH --time=16:00:00
+#SBATCH --time=6:00:00
 #SBATCH --output=./logs/%A_%a.out
 #SBATCH --error=./logs/%A_%a.err
 #SBATCH --mail-user="${email}"

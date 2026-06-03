@@ -199,7 +199,7 @@ def run_pipeline(
     if run_dense==True:
     
         sparse_merged_dir=Path(project_dir/"sparse_merged")
-        model_path=Path(sparse_merged_dir/"cross_ABC")
+        model_path=Path(sparse_merged_dir/"cross_ABC_ba")
         
         print(f"Sparse model used is {model_path}.")
 

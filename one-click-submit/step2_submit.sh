@@ -211,7 +211,7 @@ echo "  squeue -u \$USER               # all your jobs"
 if [[ "$run_dense" == "True" ]]; then
                 
     # Step 3a: PREP (Conversion & Chunking) 
-    jid3_prep=$(sbatch --job-name="${trial_name}_prep" --dependency=afterok:$MERGE_JID --mail-user="$email" step3a.sh | awk '{print $4}')
+    jid3_prep=$(sbatch --job-name="${trial_name}_step3_prep" --dependency=afterok:$MERGE_JID --mail-user="$email" step3a.sh | awk '{print $4}')
     echo "Submitted Step 3 Prep (dense chunking): $jid3_prep"
     
     echo $(date "+%Y-%m-%d %H:%M:%S") >> "${PROJECT_DIR}/jobids.txt"

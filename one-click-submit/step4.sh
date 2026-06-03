@@ -16,39 +16,29 @@ mamba activate /projects/maha7624/software/anaconda/envs/glomap_env
 echo "glomap mamba environment activated"
 
 PROJECT_DIR="${PROJECT_DIR}"
-MERGED_OUTPUT="${PROJECT_DIR}/dense/fused_chunked_merged.ply"
-sparse_dir="$PROJECT_DIR/sparse_merged"
-
 chunk_dir="${PROJECT_DIR}/chunks"
 cd "$scripts_dir"
 num_chunks=$(find "$chunk_dir" -maxdepth 1 -mindepth 1 -type d | wc -l)
 
 
-echo "Merging chunked point clouds..."
-python3 merge_chunked_ply.py \
-  --project_dir "${PROJECT_DIR}" \
-  --num_chunks ${num_chunks} \
-  --output "${MERGED_OUTPUT}" \
-  --vox_size 0.005 \
-  --deduplicate 
+# Calculate largest sparse model path for MVT
+sparse_dir="$PROJECT_DIR/sparse_merged"
 
-echo "Merge complete: ${MERGED_OUTPUT}"
-
-# Get the merged sparse model
-model_path="${sparse_dir}/cross_ABC"
+model_path="${sparse_dir}/cross_ABC_ba"
 
 
 if [[ "$run_MVT" == True ]]; then
     if [ -n "$model_path" ]; then
         echo "Merged sparse model is $model_path."
         cp "${MERGED_OUTPUT}" "${model_path}/fused.ply"
-        echo "Copied fused_chunked_merged.ply into $model_path for MVT usage"
+        echo "Copied fused.ply into $model_path for MVT usage"
     else
-        echo "No sparse model called 'cross_ABC' found!" 
+        echo "No sparse model called 'cross_ABC_ba' found!" 
     fi
 fi
 
 echo 'Moving onto Automatic Mask Cleaning & MVT'
+
 
 if [ "$run_MMC" = True ]; then
     cd herbfishCV
@@ -248,10 +238,10 @@ else
 fi
 
 # Rename unscaled point cloud, if not already done. 
-if [ -f "$PROJECT_DIR/dense/fused_chunked_merged.ply" ]; then
-    cp "$PROJECT_DIR/dense/fused_chunked_merged.ply" "$PROJECT_DIR/dense/unscaled_fused_merged.ply"
+if [ -f "$PROJECT_DIR/dense/fused.ply" ]; then
+    cp "$PROJECT_DIR/dense/fused.ply" "$PROJECT_DIR/dense/unscaled_fused.ply"
 else
-    echo "Warning: fused_chunked_merged.ply not found in dense directory, skipping rename."
+    echo "Warning: fused.ply not found in dense directory, skipping rename."
 fi
 
 
@@ -266,7 +256,7 @@ if [ "$dense_mesh" = True ]; then
     if [ "$run_MVT" = True ]; then
         colmap poisson_mesher --input_path "$PROJECT_DIR/dense/${trial_name}_scaled_fused.ply" --output_path "$output_path" --PoissonMeshing.depth=13
     else
-        colmap poisson_mesher --input_path "$PROJECT_DIR/dense/unscaled_fused_merged.ply" --output_path "${PROJECT_DIR}/dense/${trial_name}_unscaled-meshed-poisson.ply"
+        colmap poisson_mesher --input_path "$PROJECT_DIR/dense/unscaled_fused.ply" --output_path "${PROJECT_DIR}/dense/${trial_name}_unscaled-meshed-poisson.ply"
     fi
 fi
 

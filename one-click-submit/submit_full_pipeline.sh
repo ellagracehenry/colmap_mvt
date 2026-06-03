@@ -84,7 +84,7 @@ for i in "${!trial_names[@]}"; do
             jid2=$(sbatch --job-name="${trial_name}_step2" --mail-user="$email" --mail-type=ALL step2_submit.sh | awk '{print $4}')
             echo "Submitted step2: Sparse Reconstruction (COLMAP) with chunking: $jid2"
             
-            if [["$run_dense" == "True" ]]; then
+            if [[ "$run_dense" == "True" ]]; then
                 echo "Dense cloud reconstruction and MVT (steps 3 & 4) will be automatically submitted after sparse reconstruction"
             fi    
             
@@ -93,7 +93,7 @@ for i in "${!trial_names[@]}"; do
             if [[ "$run_dense" == "True" ]]; then
                 
                 # Step 3a: PREP (Conversion & Chunking) 
-                jid3_prep=$(sbatch --job-name="${trial_name}_prep" --mail-user="$email" step3a.sh | awk '{print $4}')
+                jid3_prep=$(sbatch --job-name="${trial_name}_step3_prep" --mail-user="$email" step3a.sh | awk '{print $4}')
                 echo "Submitted Step 3 Prep (dense chunking): $jid3_prep"
                 
                 if [[ "$run_MVT" == "True" || "$dense_mesh" == "True" ]]; then

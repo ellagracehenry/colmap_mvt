@@ -77,10 +77,8 @@ def main(project_dir,
     ##### Triangulate positions ##### 
     print("mvt contents:", dir(mvt))
 
-    # Select the model path that has the largest images.bin
-    
     sparse_merged_dir=os.path.join(project_dir,"sparse_merged")
-    model_path=os.path.join(sparse_merged_dir,"cross_ABC")
+    model_path=os.path.join(sparse_merged_dir,"cross_ABC_ba")
     print(f"Sparse model used is {model_path}.")
     
     # Define absolute paths for tracks_path
