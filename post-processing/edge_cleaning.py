@@ -1,6 +1,6 @@
 import open3d as o3d
 
-mesh = o3d.io.read_triangle_mesh("/Users/mad4rosie/Downloads/JM_152_full_1fps_opt_meshed-poisson.ply")
+mesh = o3d.io.read_triangle_mesh("/Users/mad4rosie/Downloads/A03_12fps_trial2.ply")
 
 # 1. Remove degenerate geometry first
 mesh.remove_degenerate_triangles()
@@ -21,4 +21,4 @@ triangles_to_remove = [
 ]
 mesh.remove_triangles_by_index(triangles_to_remove)
 
-o3d.io.write_triangle_mesh("/Users/mad4rosie/Downloads/cleaned_JM_152_full_mesh.ply", mesh)
+o3d.io.write_triangle_mesh("/Users/mad4rosie/GilLab/Plastics/habitats/A03_12fps_clean.ply", mesh)
