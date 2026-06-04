@@ -16,10 +16,7 @@ mamba activate /projects/maha7624/software/anaconda/envs/glomap_env
 echo "glomap mamba environment activated"
 
 PROJECT_DIR="${PROJECT_DIR}"
-chunk_dir="${PROJECT_DIR}/chunks"
 cd "$scripts_dir"
-num_chunks=$(find "$chunk_dir" -maxdepth 1 -mindepth 1 -type d | wc -l)
-
 
 # Calculate largest sparse model path for MVT
 sparse_dir="$PROJECT_DIR/sparse_merged"
@@ -30,7 +27,7 @@ model_path="${sparse_dir}/cross_ABC_ba"
 if [[ "$run_MVT" == True ]]; then
     if [ -n "$model_path" ]; then
         echo "Merged sparse model is $model_path."
-        cp "${MERGED_OUTPUT}" "${model_path}/fused.ply"
+        cp "${PROJECT_DIR}/dense/fused.ply" "${model_path}/fused.ply"
         echo "Copied fused.ply into $model_path for MVT usage"
     else
         echo "No sparse model called 'cross_ABC_ba' found!" 
