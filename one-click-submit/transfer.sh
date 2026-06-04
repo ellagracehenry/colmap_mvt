@@ -4,7 +4,7 @@ set -euo pipefail
 
 # ============================================
 # Usage:
-#   ./pull_trials.sh configs.sh
+#   ./transfer.sh configs.sh
 #
 # Assumptions:
 #   configs.sh defines:
@@ -42,6 +42,8 @@ REMOTE_TMP_DIR="/scratch/alpine/maha7624/3D_Tracking/2024_FF/tmp"
 
 # Local destination
 LOCAL_DEST="/Users/mad4rosie/Downloads/test_transfer"
+
+
 
 mkdir -p "$LOCAL_DEST"
 
