@@ -7,6 +7,7 @@ import numpy as np
 import trimesh
 from scipy.spatial import cKDTree
 
+mesh = trimesh.load_mesh('/Users/mad4rosie/GilLab/Plastics/habitats/A21_12fps_clean2.ply')
 
 def calculate_surface_area(mesh):
     """
@@ -81,11 +82,6 @@ def calculate_local_rugosity(fish_path, radius, mesh):
     print(f"Faces in local submesh: {len(submesh.faces)}")
 
     return calculate_rugosity(submesh)
-
-
-# Load the reef mesh
-mesh = trimesh.load_mesh('/Users/mad4rosie/GilLab/Plastics/habitats/A03_12fps_clean.ply')
-
 
 
 

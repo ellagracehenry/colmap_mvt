@@ -40,7 +40,7 @@ run_MMC=True
 
 
 ## ! DO NOT USE AMC ! (for now) ##
-# Run Automatic Mask Cleaner (AMC): Removes both known errors and unmarked errors from the SAM2 masks ** Unfortunately, still is overcorrecting
+# Run Automatic Mask Cleaner (AMC): Removes both known errors and unmarked errors from the SAM2 masks
 # Will still run if no observationID is found in the SAM2-errors.csv
 run_AMC=False
 

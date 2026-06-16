@@ -122,7 +122,7 @@ def run_pipeline(
             cmd = [
                 "colmap", "sequential_matcher",
                 "--database_path", str(db_path),
-                "--SequentialMatching.loop_detection=1"
+                "--SequentialMatching.loop_detection=1",
                 "--SequentialMatching.loop_detection_period=10",
                 "--SequentialMatching.loop_detection_num_images=50"
             ]

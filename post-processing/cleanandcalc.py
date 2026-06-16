@@ -5,8 +5,8 @@ import numpy as np
 import trimesh
 from scipy.spatial import cKDTree
 
-input_mesh_path="/Users/mad4rosie/Downloads/A07_12fps_trial1.ply"
-output_mesh_path = "/Users/mad4rosie/GilLab/Plastics/habitats/A07_12fps_clean.ply"
+input_mesh_path="/Users/mad4rosie/Downloads/A22_12fps_trial1.ply"
+output_mesh_path = "/Users/mad4rosie/GilLab/Plastics/habitats/A22_12fps_clean.ply"
 
 
 
